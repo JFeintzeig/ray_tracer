@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include "vec3.h"
+#include "color.h"
+#include "ray.h"
 
 int main() {
   FILE *fp;
@@ -18,17 +20,14 @@ int main() {
   for (int j = 0; j < image_height; j++) {
     printf("Scanlines remaining: %d\n", image_height - j);
     for (int i = 0; i < image_width; i++) {
-      double red = (double)i * 1.0 / (double)(image_width - 1);
-      double green = (double)j * 1.0 / (double)(image_height - 1);
-
-      int ired = (int)(red*256);
-      int igreen = (int)(green*256);
-
-      fprintf(fp, "%d %d 0\n", ired, igreen);
+      color_t color = vec3(
+        (double)i * 1.0 / (double)(image_width-1),
+        (double)j * 1.0 / (double)(image_height-1),
+        0);
+      write_color(fp, color);
     }
   }
 
   printf("Done\n");
-
   return 0;
 }

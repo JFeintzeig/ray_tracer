@@ -3,7 +3,7 @@ typedef struct {
   vec3_t direction;
 } ray_t;
 
-ray_t ray(point3_t origin, vec3_t direction) {
+ray_t new_ray(point3_t origin, vec3_t direction) {
   ray_t ray = {.origin = origin, .direction = direction};
   return ray;
 }

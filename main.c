@@ -6,13 +6,18 @@
 double aspect_ratio = 16.0 / 9.0;
 int image_width = 400;
 
-bool hit_sphere(const point3_t *center, double radius, const ray_t *r) {
+double hit_sphere(const point3_t *center, double radius, const ray_t *r) {
   vec3_t a_c = subtract(r->origin, *center);
   double a = length_squared(&r->direction);
-  double b = dot(scale(r->direction, 2.0), a_c);
-  double c = dot(a_c, a_c) - radius*radius;
+  double half_b = dot(r->direction, a_c);
+  double c = length_squared(&a_c) - radius*radius;
 
-  return b*b - 4*a*c >= 0;
+  double discriminant = half_b*half_b - a*c;
+  if (discriminant < 0) {
+    return -1.0;
+  } else {
+    return (-1*half_b - sqrt(discriminant)) / a;
+  }
 }
 
 color_t ray_color_stub(const ray_t *r) {
@@ -21,8 +26,11 @@ color_t ray_color_stub(const ray_t *r) {
   color_t blue = new_vec3(0.5, 0.7, 1.0);
 
   point3_t sphere_center = new_vec3(0.0, 0.0, -1.0);
-  if (hit_sphere(&sphere_center, 0.5, r)) {
-    return new_vec3(1.0, 0.0, 0.0);
+  double hit = hit_sphere(&sphere_center, 0.5, r);
+  if (hit >= 0.0) {
+    vec3_t normal = normalize(subtract(propagate(*r, hit), sphere_center));
+    add_equals(&normal, new_vec3(1.0, 1.0, 1.0));
+    return scale(normal, 0.5);
   } else {
     return add(scale(white, 1-a), scale(blue, a));
   }

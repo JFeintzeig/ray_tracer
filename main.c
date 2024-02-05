@@ -1,26 +1,19 @@
 #include <stdio.h>
-#include "vec3.h"
-#include "color.h"
-#include "ray.h"
-#include "hittable.h"
+#include "rtweekend.h"
 
 double aspect_ratio = 16.0 / 9.0;
 int image_width = 400;
 
-color_t ray_color_stub(const ray_t *r) {
-  double a = 0.5 * (1.0 + normalize(r->direction).e[1]);
-  color_t white = new_vec3(1.0, 1.0, 1.0);
-  color_t blue = new_vec3(0.5, 0.7, 1.0);
-
-  point3_t sphere_center = new_vec3(0.0, 0.0, -1.0);
-  sphere_t sphere = new_sphere(sphere_center, 0.5);
-
+color_t ray_color(const ray_t *r, const hittable_t *world) {
   hit_record_t rec;
-  bool is_hit = hit((hittable_t *)&sphere, r, 0, 100, &rec);
-  if (is_hit) {
+  // TODO: adjust t_max to be much bigger
+  if (hit(world, r, 0, INFINITY, &rec)) {
     add_equals(&rec.normal, new_vec3(1.0, 1.0, 1.0));
     return scale(rec.normal, 0.5);
   } else {
+    double a = 0.5 * (1.0 + normalize(r->direction).e[1]);
+    color_t white = new_vec3(1.0, 1.0, 1.0);
+    color_t blue = new_vec3(0.5, 0.7, 1.0);
     return add(scale(white, 1-a), scale(blue, a));
   }
 }
@@ -50,6 +43,10 @@ int main() {
   subtract_equals(&viewport_upper_left, scale(viewport_v, 0.5));
   point3_t pixel00_loc = add(viewport_upper_left, scale(pixel_delta_uv, 0.5));
 
+  sphere_list_t *sphere_list = new_sphere_list(1);
+  add_sphere(sphere_list, new_vec3(0.0, 0.0, -1.0), 0.5);
+  add_sphere(sphere_list, new_vec3(0.0, -100.5, -1.0), 100);
+
   fp = fopen("output.ppm", "w");
 
   fprintf(fp, "P3\n");
@@ -65,7 +62,7 @@ int main() {
       vec3_t ray_direction = subtract(pixel_center, camera_center);
       ray_t ray = new_ray(camera_center, ray_direction);
 
-      color_t pixel_color = ray_color_stub(&ray);
+      color_t pixel_color = ray_color(&ray, (hittable_t *)sphere_list);
       write_color(fp, pixel_color);
     }
   }

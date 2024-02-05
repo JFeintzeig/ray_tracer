@@ -17,14 +17,14 @@ void set_face_normal(hit_record_t *rec, const ray_t *r, vec3_t outward_normal) {
 
 struct hittable_t;
 
-typedef bool (hit_fn_t)(const struct hittable_t *hittable, const ray_t *r, double t_min, double t_max, hit_record_t *rec);
+typedef bool (hit_fn_t)(const struct hittable_t *hittable, const ray_t *r, const interval_t *interval, hit_record_t *rec);
 
 typedef struct hittable_t {
   hit_fn_t *hit_fn;
 } hittable_t;
 
-bool hit(const hittable_t *hittable, const ray_t *r, double t_min, double t_max, hit_record_t *rec) {
-  return (*(hittable->hit_fn))(hittable, r, t_min, t_max, rec);
+bool hit(const hittable_t *hittable, const ray_t *r, const interval_t *interval, hit_record_t *rec) {
+  return (*(hittable->hit_fn))(hittable, r, interval, rec);
 }
 
 struct sphere_t;
@@ -35,7 +35,7 @@ typedef struct sphere_t {
   double radius;
 } sphere_t;
 
-bool hit_fn_sphere(const hittable_t *hittable, const ray_t *r, double t_min, double t_max, hit_record_t *rec) {
+bool hit_fn_sphere(const hittable_t *hittable, const ray_t *r, const interval_t *interval, hit_record_t *rec) {
   sphere_t *sphere = (sphere_t *)hittable;
   point3_t center = sphere->center;
   double radius = sphere->radius;
@@ -49,11 +49,13 @@ bool hit_fn_sphere(const hittable_t *hittable, const ray_t *r, double t_min, dou
   if (discriminant < 0) {
     return false;
   } else {
-    // confusing: find the closest root between t_min and t_max
+    // confusing: find the closest root in interval
     double t = (-1*half_b - sqrt(discriminant)) / a;
-    if (t <= t_min || t >= t_max) {
+    //if (t <= t_min || t >= t_max) {
+    if (!interval_surrounds(interval, t)) {
       t = (-1*half_b + sqrt(discriminant)) / a;
-      if (t <= t_min || t >= t_max) {
+      //if (t <= t_min || t >= t_max) {
+      if (!interval_surrounds(interval, t)) {
         return false;
       }
     }
@@ -90,16 +92,17 @@ typedef struct {
   sphere_t spheres[];
 } sphere_list_t;
 
-bool hit_fn_sphere_list(const hittable_t *hittable, const ray_t *r, double t_min, double t_max, hit_record_t *rec) {
+bool hit_fn_sphere_list(const hittable_t *hittable, const ray_t *r, const interval_t *interval, hit_record_t *rec) {
   sphere_list_t *sphere_list = (sphere_list_t *)hittable;
   hit_record_t temp_rec;
-  double closest_so_far = t_max;
+  double closest_so_far = interval->max;
   bool is_hit = false;
 
   for (sphere_t *sphere = sphere_list->spheres;
         sphere != &sphere_list->spheres[sphere_list->nth_sphere];
         sphere++) {
-    if (hit((hittable_t *)sphere, r, t_min, closest_so_far, &temp_rec)) {
+    interval_t this_interval = {.min = interval->min, .max = closest_so_far};
+    if (hit((hittable_t *)sphere, r, &this_interval, &temp_rec)) {
       is_hit = true;
       closest_so_far = temp_rec.t;
       rec->p = temp_rec.p;
@@ -111,7 +114,7 @@ bool hit_fn_sphere_list(const hittable_t *hittable, const ray_t *r, double t_min
   return is_hit;  
 }
 
-sphere_list_t *new_sphere_list(int n_spheres) {
+sphere_list_t *new_sphere_list(size_t n_spheres) {
   // TODO: what about free()!?!?
   sphere_list_t *sphere_list = malloc(sizeof(sphere_list_t) + n_spheres * sizeof(sphere_t));
   sphere_list->max_spheres = n_spheres;

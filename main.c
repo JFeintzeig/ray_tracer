@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdio.h>
 #include "rtweekend.h"
 
@@ -6,8 +7,8 @@ int image_width = 400;
 
 color_t ray_color(const ray_t *r, const hittable_t *world) {
   hit_record_t rec;
-  // TODO: adjust t_max to be much bigger
-  if (hit(world, r, 0, INFINITY, &rec)) {
+  interval_t interval = {.min = 0, .max = INFINITY};
+  if (hit(world, r, &interval, &rec)) {
     add_equals(&rec.normal, new_vec3(1.0, 1.0, 1.0));
     return scale(rec.normal, 0.5);
   } else {
@@ -43,7 +44,7 @@ int main() {
   subtract_equals(&viewport_upper_left, scale(viewport_v, 0.5));
   point3_t pixel00_loc = add(viewport_upper_left, scale(pixel_delta_uv, 0.5));
 
-  sphere_list_t *sphere_list = new_sphere_list(1);
+  sphere_list_t *sphere_list = new_sphere_list(2);
   add_sphere(sphere_list, new_vec3(0.0, 0.0, -1.0), 0.5);
   add_sphere(sphere_list, new_vec3(0.0, -100.5, -1.0), 100);
 

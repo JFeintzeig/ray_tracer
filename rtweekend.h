@@ -4,6 +4,7 @@
 #include "ray.h"
 #include "interval.h"
 #include "hittable.h"
+#include "camera.h"
 
 const double pi = 3.1415926535897932385;
 

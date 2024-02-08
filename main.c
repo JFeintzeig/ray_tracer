@@ -12,7 +12,6 @@
 
 double aspect_ratio = 16.0 / 9.0;
 int image_width = 400;
-int n_samples = 100;
 
 int main() {
   srand(time(NULL));   // Initialization, should only be called once.
@@ -24,8 +23,8 @@ int main() {
 
   sphere_list_t *sphere_list = new_sphere_list(2);
   add_sphere(sphere_list, new_vec3(0.0, 0.0, -1.0), 0.5);
-  add_sphere(sphere_list, new_vec3(0.0, -100.5, -1.0), 100);
+  add_sphere(sphere_list, new_vec3(0.0, -100.5, -1.0), 100.0);
 
-  render(&camera, (hittable_t *)sphere_list, n_samples);
+  render(&camera, (hittable_t *)sphere_list);
   return 0;
 }

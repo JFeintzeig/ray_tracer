@@ -15,11 +15,16 @@ typedef struct {
   point3_t pixel00_loc;
   point3_t pixel_delta_u;
   point3_t pixel_delta_v;
+  int samples_per_pixel;
+  int max_depth;
 } camera_t;
 
 camera_t initialize_camera(double aspect_ratio, int image_width) {
   int image_height = (int)(image_width / aspect_ratio);
   image_height = (image_height < 1) ? 1 : image_height;
+
+  int samples_per_pixel = 100;
+  int max_depth = 50;
 
   double focal_length = 1.0;
   double viewport_height = 2.0;
@@ -45,18 +50,26 @@ camera_t initialize_camera(double aspect_ratio, int image_width) {
     .center = center,
     .pixel00_loc = pixel00_loc,
     .pixel_delta_u = pixel_delta_u,
-    .pixel_delta_v = pixel_delta_v
+    .pixel_delta_v = pixel_delta_v,
+    .samples_per_pixel = samples_per_pixel,
+    .max_depth = max_depth
   };
   
   return camera;
 }
 
-color_t ray_color(const ray_t *r, const hittable_t *world) {
+color_t ray_color(const ray_t *r, int depth, const hittable_t *world) {
+  if (depth == 0) {
+    return new_vec3(0.0, 0.0, 0.0);
+  }
+
   hit_record_t rec;
-  interval_t interval = {.min = 0, .max = INFINITY};
+  interval_t interval = {.min = 0.001, .max = INFINITY};
+
   if (hit(world, r, &interval, &rec)) {
-    add_equals(&rec.normal, new_vec3(1.0, 1.0, 1.0));
-    return scale(rec.normal, 0.5);
+    vec3_t direction = add(rec.normal, random_vec3_on_unit_sphere());
+    ray_t nray = new_ray(r->origin, direction);
+    return scale(ray_color(&nray, depth - 1, world), 0.5);
   } else {
     double a = 0.5 * (1.0 + normalize(r->direction).e[1]);
     color_t white = new_vec3(1.0, 1.0, 1.0);
@@ -65,7 +78,7 @@ color_t ray_color(const ray_t *r, const hittable_t *world) {
   }
 }
 
-void render(camera_t *camera, const hittable_t *world, int n_samples) {
+void render(camera_t *camera, const hittable_t *world) {
   FILE *fp;
   fp = fopen("output.ppm", "w");
 
@@ -80,7 +93,7 @@ void render(camera_t *camera, const hittable_t *world, int n_samples) {
       add_equals(&pixel_center, scale(camera->pixel_delta_v, j));
 
       color_t color_sum = new_vec3(0.0, 0.0, 0.0);
-      for (int i=0; i < n_samples; i++) {
+      for (int i=0; i < camera->samples_per_pixel; i++) {
         point3_t pixel_sample = add(
           pixel_center,
           scale(camera->pixel_delta_u, (-0.5 + random_double()))
@@ -91,11 +104,11 @@ void render(camera_t *camera, const hittable_t *world, int n_samples) {
         vec3_t ray_direction = subtract(pixel_sample, camera->center);
         ray_t ray = new_ray(camera->center, ray_direction);
 
-        color_t sample_color = ray_color(&ray, (hittable_t *)world);
+        color_t sample_color = ray_color(&ray, camera->max_depth, (hittable_t *)world);
         add_equals(&color_sum, sample_color);
       }
 
-      color_t pixel_color = scale(color_sum, 1.0/n_samples);
+      color_t pixel_color = scale(color_sum, 1.0/camera->samples_per_pixel);
 
       write_color(fp, pixel_color);
     }

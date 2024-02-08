@@ -14,4 +14,8 @@ double random_double() {
   return (float)rand() / ((float)(RAND_MAX) + 1);
 }
 
+double random_double_range(double min, double max) {
+  return min + (max - min) * (float)rand() / ((float)(RAND_MAX) + 1);
+}
+
 #endif // !RTWEEKEND_H

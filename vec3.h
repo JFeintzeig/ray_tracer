@@ -1,6 +1,7 @@
 #ifndef VEC3_H
 #define VEC3_H
 
+#include "rtweekend.h"
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -94,6 +95,28 @@ vec3_t cross(vec3_t a, vec3_t b) {
 
 vec3_t normalize(vec3_t a) {
   return scale(a, 1/length(&a));
+}
+
+vec3_t random_vec3(double min, double max) {
+  return new_vec3(random_double_range(min, max), random_double_range(min, max), random_double_range(min, max));
+}
+
+vec3_t random_vec3_on_unit_sphere() {
+  for (;;) {
+    vec3_t vec = random_vec3(-1.0, 1.0);
+    if (length_squared(&vec) < 1) {
+      return normalize(vec);
+    }
+  }
+}
+
+vec3_t random_vec3_on_hemisphere(vec3_t normal) {
+  vec3_t vec = random_vec3_on_unit_sphere();
+  if (dot(vec, normal) > 0.0) {
+    return vec;
+  } else {
+    return invert(vec);
+  }
 }
 
 #endif // !VEC3_H

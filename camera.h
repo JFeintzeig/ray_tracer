@@ -1,3 +1,11 @@
+#ifndef CAMERA_H
+#define CAMERA_H
+
+#include "color.h"
+#include "hittable.h"
+#include "ray.h"
+#include "rtweekend.h"
+#include "vec3.h"
 
 typedef struct {
   double aspect_ratio;
@@ -57,7 +65,7 @@ color_t ray_color(const ray_t *r, const hittable_t *world) {
   }
 }
 
-void render(camera_t *camera, const hittable_t *world) {
+void render(camera_t *camera, const hittable_t *world, int n_samples) {
   FILE *fp;
   fp = fopen("output.ppm", "w");
 
@@ -71,13 +79,28 @@ void render(camera_t *camera, const hittable_t *world) {
       point3_t pixel_center = add(camera->pixel00_loc, scale(camera->pixel_delta_u, i));
       add_equals(&pixel_center, scale(camera->pixel_delta_v, j));
 
-      vec3_t ray_direction = subtract(pixel_center, camera->center);
-      ray_t ray = new_ray(camera->center, ray_direction);
+      color_t color_sum = new_vec3(0.0, 0.0, 0.0);
+      for (int i=0; i < n_samples; i++) {
+        point3_t pixel_sample = add(
+          pixel_center,
+          scale(camera->pixel_delta_u, (-0.5 + random_double()))
+        );
+        add_equals(&pixel_sample,
+                   scale(camera->pixel_delta_v, (-0.5 + random_double())));
 
-      color_t pixel_color = ray_color(&ray, (hittable_t *)world);
+        vec3_t ray_direction = subtract(pixel_sample, camera->center);
+        ray_t ray = new_ray(camera->center, ray_direction);
+
+        color_t sample_color = ray_color(&ray, (hittable_t *)world);
+        add_equals(&color_sum, sample_color);
+      }
+
+      color_t pixel_color = scale(color_sum, 1.0/n_samples);
+
       write_color(fp, pixel_color);
     }
   }
   printf("Done\n");
 }
 
+#endif // !CAMERA_H

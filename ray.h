@@ -1,3 +1,8 @@
+#ifndef RAY_H
+#define RAY_H
+
+#include "vec3.h"
+
 typedef struct {
   point3_t origin;
   vec3_t direction;
@@ -11,3 +16,5 @@ ray_t new_ray(point3_t origin, vec3_t direction) {
 point3_t propagate(ray_t ray, double t) {
   return add(ray.origin, scale(ray.direction, t));
 }
+
+#endif // !RAY_H

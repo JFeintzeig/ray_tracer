@@ -1,5 +1,12 @@
+#ifndef HITTABLE_H
+#define HITTABLE_H
+
 #include <stdbool.h>
 #include <stdlib.h>
+
+#include "vec3.h"
+#include "ray.h"
+#include "interval.h"
 
 typedef struct {
   point3_t p;
@@ -133,3 +140,5 @@ void add_sphere(sphere_list_t *sphere_list, vec3_t center, double radius) {
   sphere_list->spheres[sphere_list->nth_sphere] = new_sphere(center, radius);
   sphere_list->nth_sphere++;
 }
+
+#endif // !HITTABLE_H

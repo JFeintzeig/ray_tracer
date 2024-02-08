@@ -1,11 +1,22 @@
 #include <math.h>
 #include <stdio.h>
-#include "rtweekend.h"
+#include <stdlib.h>
+#include <time.h>
+
+#include "vec3.h"
+#include "color.h"
+#include "ray.h"
+#include "interval.h"
+#include "hittable.h"
+#include "camera.h"
 
 double aspect_ratio = 16.0 / 9.0;
 int image_width = 400;
+int n_samples = 100;
 
 int main() {
+  srand(time(NULL));   // Initialization, should only be called once.
+
   double aspect_ratio = 16.0 / 9.0;
   int image_width = 400;
 
@@ -15,6 +26,6 @@ int main() {
   add_sphere(sphere_list, new_vec3(0.0, 0.0, -1.0), 0.5);
   add_sphere(sphere_list, new_vec3(0.0, -100.5, -1.0), 100);
 
-  render(&camera, (hittable_t *)sphere_list);
+  render(&camera, (hittable_t *)sphere_list, n_samples);
   return 0;
 }

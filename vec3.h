@@ -1,3 +1,6 @@
+#ifndef VEC3_H
+#define VEC3_H
+
 #include <math.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -92,3 +95,5 @@ vec3_t cross(vec3_t a, vec3_t b) {
 vec3_t normalize(vec3_t a) {
   return scale(a, 1/length(&a));
 }
+
+#endif // !VEC3_H

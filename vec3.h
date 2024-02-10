@@ -124,4 +124,8 @@ vec3_t random_vec3_on_hemisphere(vec3_t normal) {
   }
 }
 
+vec3_t reflect(vec3_t v, vec3_t n) {
+  return subtract(v, scale(n, 2*dot(v, n)));
+}
+
 #endif // !VEC3_H

@@ -68,7 +68,7 @@ color_t ray_color(const ray_t *r, int depth, const hittable_t *world) {
 
   if (hit(world, r, &interval, &rec)) {
     vec3_t direction = add(rec.normal, random_vec3_on_unit_sphere());
-    ray_t nray = new_ray(r->origin, direction);
+    ray_t nray = new_ray(rec.p, direction);
     return scale(ray_color(&nray, depth - 1, world), 0.5);
   } else {
     double a = 0.5 * (1.0 + normalize(r->direction).e[1]);

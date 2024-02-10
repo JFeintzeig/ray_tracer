@@ -3,6 +3,7 @@
 
 #include "color.h"
 #include "hittable.h"
+#include "material.h"
 #include "ray.h"
 #include "rtweekend.h"
 #include "vec3.h"
@@ -67,9 +68,13 @@ color_t ray_color(const ray_t *r, int depth, const hittable_t *world) {
   interval_t interval = {.min = 0.001, .max = INFINITY};
 
   if (hit(world, r, &interval, &rec)) {
-    vec3_t direction = add(rec.normal, random_vec3_on_unit_sphere());
-    ray_t nray = new_ray(rec.p, direction);
-    return scale(ray_color(&nray, depth - 1, world), 0.5);
+    ray_t nray;
+    color_t attenuation;
+    if (scatter(rec.mat, r, &rec, &attenuation, &nray)) {
+      return multiply(attenuation, ray_color(&nray, depth -1, world));
+    }else {
+      return new_vec3(0.0, 0.0, 0.0);
+    }
   } else {
     double a = 0.5 * (1.0 + normalize(r->direction).e[1]);
     color_t white = new_vec3(1.0, 1.0, 1.0);

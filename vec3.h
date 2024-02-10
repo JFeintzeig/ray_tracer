@@ -26,6 +26,11 @@ bool equals(vec3_t a, vec3_t b) {
   }
 }
 
+bool near_zero(vec3_t a) {
+  double s = 1e-8;
+  return (a.e[0] < s) && (a.e[1] < s) && (a.e[2] < s);
+}
+
 void add_equals(vec3_t *a, vec3_t b) {
   a->e[0] += b.e[0];
   a->e[1] += b.e[1];

@@ -8,11 +8,14 @@
 #include "ray.h"
 #include "interval.h"
 
+typedef struct material_t material_t;
+
 typedef struct {
   point3_t p;
   vec3_t normal;
   double t;
   bool front_face;
+  material_t *mat;
 } hit_record_t;
 
 // sets front_face and normal depending on if aligned or anti-aligned with ray
@@ -28,6 +31,7 @@ typedef bool (hit_fn_t)(const struct hittable_t *hittable, const ray_t *r, const
 
 typedef struct hittable_t {
   hit_fn_t *hit_fn;
+  material_t *material;
 } hittable_t;
 
 bool hit(const hittable_t *hittable, const ray_t *r, const interval_t *interval, hit_record_t *rec) {
@@ -71,18 +75,20 @@ bool hit_fn_sphere(const hittable_t *hittable, const ray_t *r, const interval_t 
     rec->p = propagate(*r, t);
     vec3_t outward_normal = normalize(subtract(rec->p, center));
     set_face_normal(rec, r, outward_normal);
+    rec->mat = sphere->hittable.material;
     return true;
   }
 }
 
-sphere_t new_sphere(point3_t center, double radius) {
+sphere_t new_sphere(point3_t center, double radius, material_t *material) {
   sphere_t sphere = {
     .center = center,
     .radius = radius
   };
 
   hittable_t hittable = {
-    .hit_fn = &hit_fn_sphere
+    .hit_fn = &hit_fn_sphere,
+    .material = material
   };
 
   sphere.hittable = hittable;
@@ -116,6 +122,7 @@ bool hit_fn_sphere_list(const hittable_t *hittable, const ray_t *r, const interv
       rec->normal = temp_rec.normal;
       rec->t = temp_rec.t;
       rec->front_face = temp_rec.front_face;
+      rec->mat = temp_rec.mat;
     }
   }
   return is_hit;  
@@ -135,9 +142,9 @@ sphere_list_t *new_sphere_list(size_t n_spheres) {
   return sphere_list;
 }
 
-void add_sphere(sphere_list_t *sphere_list, vec3_t center, double radius) {
+void add_sphere(sphere_list_t *sphere_list, vec3_t center, double radius, material_t *material) {
   // TODO: check how nth_sphere compares to max_spheres!
-  sphere_list->spheres[sphere_list->nth_sphere] = new_sphere(center, radius);
+  sphere_list->spheres[sphere_list->nth_sphere] = new_sphere(center, radius, material);
   sphere_list->nth_sphere++;
 }
 

@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include "material.h"
 #include "vec3.h"
 #include "color.h"
 #include "ray.h"
@@ -21,9 +22,12 @@ int main() {
 
   camera_t camera = initialize_camera(aspect_ratio, image_width);
 
+  lambertian_t material_ground = new_lambertian((color_t)new_vec3(0.8, 0.8,  0.0));
+  lambertian_t material_center = new_lambertian((color_t)new_vec3(0.7, 0.3,  0.3));
+
   sphere_list_t *sphere_list = new_sphere_list(2);
-  add_sphere(sphere_list, new_vec3(0.0, 0.0, -1.0), 0.5);
-  add_sphere(sphere_list, new_vec3(0.0, -100.5, -1.0), 100.0);
+  add_sphere(sphere_list, new_vec3(0.0, 0.0, -1.0), 0.5, (material_t *)&material_center);
+  add_sphere(sphere_list, new_vec3(0.0, -100.5, -1.0), 100.0, (material_t *)&material_ground);
 
   render(&camera, (hittable_t *)sphere_list);
   return 0;

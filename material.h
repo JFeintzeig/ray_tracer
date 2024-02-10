@@ -3,6 +3,7 @@
 
 #include "hittable.h"
 #include "ray.h"
+#include "rtweekend.h"
 #include "vec3.h"
 
 typedef bool (scatter_fn_t)(const material_t *material, const ray_t *ray_in, const hit_record_t *rec, color_t *attenuation, ray_t *scattered);
@@ -68,6 +69,51 @@ metal_t new_metal(color_t albedo, double fuzz) {
   };
 
   return (metal_t){.material = mat, .albedo = albedo, .fuzz = fuzz > 1 ? 1 : fuzz};
+}
+
+typedef struct dielectric_t {
+  material_t material;
+  double ir;
+} dielectric_t;
+
+// Schlick's approximation
+double dielectric_reflectance(double cos, double ref_idx) {
+  double r0 = (1 - ref_idx) / (1 + ref_idx);
+  r0 = r0*r0;
+  return r0 + (1-r0)*pow((1-cos), 5);
+}
+
+bool dielectric_scatter(const material_t *material, const ray_t *ray_in, const hit_record_t *rec, color_t *attenuation, ray_t *scattered) {
+  dielectric_t *dielectric = (dielectric_t *)material;
+  attenuation->e[0] = 1.0;
+  attenuation->e[1] = 1.0;
+  attenuation->e[2] = 1.0;
+
+  double refraction_ratio = rec->front_face? 1.0/dielectric->ir : dielectric->ir;
+
+  vec3_t unit_direction = normalize(ray_in->direction);
+
+  double cos_theta = fmin(dot(scale(unit_direction, -1.0), rec->normal), 1.0);
+  double sin_theta = sqrt(1-cos_theta * cos_theta);
+  bool tir = refraction_ratio*sin_theta > 1;
+  if (tir || dielectric_reflectance(cos_theta, refraction_ratio) > random_double()) {
+    scattered->direction = reflect(unit_direction, rec->normal);
+  } else {
+    // refract
+    scattered->direction = refract(unit_direction, rec->normal, refraction_ratio);
+  }
+
+  scattered->origin = rec->p;
+
+  return true;
+}
+
+dielectric_t new_dielectric(double ir) {
+  material_t mat = {
+    .scatter_fn = &dielectric_scatter
+  };
+
+  return (dielectric_t){.material = mat, .ir = ir};
 }
 
 #endif // !MATERIAL_H

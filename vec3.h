@@ -128,4 +128,13 @@ vec3_t reflect(vec3_t v, vec3_t n) {
   return subtract(v, scale(n, 2*dot(v, n)));
 }
 
+vec3_t refract(vec3_t uv, vec3_t n, double eta_over_eta_prime) {
+  double cos_theta = fmin(dot(scale(uv, -1.0), n), 1.0);
+  vec3_t r_prime_perp = scale(n, cos_theta);
+  add_equals(&r_prime_perp, uv);
+  r_prime_perp = scale(r_prime_perp, eta_over_eta_prime);
+  vec3_t r_prime_parallel = scale(n, -1*sqrt(fabs(1 - length_squared(&r_prime_perp))));
+  return add(r_prime_perp, r_prime_parallel);
+}
+
 #endif // !VEC3_H

@@ -23,14 +23,15 @@ int main() {
   camera_t camera = initialize_camera(aspect_ratio, image_width);
 
   lambertian_t material_ground = new_lambertian((color_t)new_vec3(0.8, 0.8,  0.0));
-  lambertian_t material_center = new_lambertian((color_t)new_vec3(0.7, 0.3,  0.3));
-  metal_t material_left = new_metal((color_t)new_vec3(0.8, 0.8,  0.8), 0.3);
-  metal_t material_right = new_metal((color_t)new_vec3(0.8, 0.6,  0.2), 1.0);
+  lambertian_t material_center = new_lambertian((color_t)new_vec3(0.1, 0.2,  0.5));
+  dielectric_t material_left = new_dielectric(1.5);
+  metal_t material_right = new_metal((color_t)new_vec3(0.8, 0.6,  0.2), 0.0);
 
-  sphere_list_t *sphere_list = new_sphere_list(4);
+  sphere_list_t *sphere_list = new_sphere_list(5);
   add_sphere(sphere_list, new_vec3(0.0, -100.5, -1.0), 100.0, (material_t *)&material_ground);
   add_sphere(sphere_list, new_vec3(0.0, 0.0, -1.0), 0.5, (material_t *)&material_center);
   add_sphere(sphere_list, new_vec3(-1.0, 0.0, -1.0), 0.5, (material_t *)&material_left);
+  add_sphere(sphere_list, new_vec3(-1.0, 0.0, -1.0), -0.4, (material_t *)&material_left);
   add_sphere(sphere_list, new_vec3(1.0, 0.0, -1.0), 0.5, (material_t *)&material_right);
 
   render(&camera, (hittable_t *)sphere_list);

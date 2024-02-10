@@ -24,8 +24,8 @@ int main() {
 
   lambertian_t material_ground = new_lambertian((color_t)new_vec3(0.8, 0.8,  0.0));
   lambertian_t material_center = new_lambertian((color_t)new_vec3(0.7, 0.3,  0.3));
-  metal_t material_left = new_metal((color_t)new_vec3(0.8, 0.8,  0.8));
-  metal_t material_right = new_metal((color_t)new_vec3(0.8, 0.6,  0.2));
+  metal_t material_left = new_metal((color_t)new_vec3(0.8, 0.8,  0.8), 0.3);
+  metal_t material_right = new_metal((color_t)new_vec3(0.8, 0.6,  0.2), 1.0);
 
   sphere_list_t *sphere_list = new_sphere_list(4);
   add_sphere(sphere_list, new_vec3(0.0, -100.5, -1.0), 100.0, (material_t *)&material_ground);

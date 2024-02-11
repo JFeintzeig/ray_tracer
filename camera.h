@@ -25,12 +25,9 @@ typedef struct {
 
 } camera_t;
 
-camera_t initialize_camera(double aspect_ratio, int image_width, double vfov, point3_t lookfrom, point3_t lookat, point3_t vup, double defocus_angle, double focus_dist) {
+camera_t initialize_camera(double aspect_ratio, int image_width, int samples_per_pixel, int max_depth, double vfov, point3_t lookfrom, point3_t lookat, point3_t vup, double defocus_angle, double focus_dist) {
   int image_height = (int)(image_width / aspect_ratio);
   image_height = (image_height < 1) ? 1 : image_height;
-
-  int samples_per_pixel = 100;
-  int max_depth = 50;
 
   point3_t center = lookfrom;
 

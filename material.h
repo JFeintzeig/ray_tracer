@@ -35,12 +35,16 @@ bool lambertian_scatter(const material_t *material, const ray_t *ray_in, const h
   return true;
 }
 
-lambertian_t new_lambertian(color_t albedo) {
+lambertian_t *new_lambertian(color_t albedo) {
+  lambertian_t *lamb = malloc(sizeof(lambertian_t));
+
   material_t mat = {
     .scatter_fn = &lambertian_scatter
   };
 
-  return (lambertian_t){.material = mat, .albedo = albedo};
+  *lamb = (lambertian_t){.material = mat, .albedo = albedo};
+
+  return lamb;
 }
 
 typedef struct metal_t {
@@ -63,12 +67,15 @@ bool metal_scatter(const material_t *material, const ray_t *ray_in, const hit_re
   return (dot(scatter_direction, rec->normal) > 0);
 }
 
-metal_t new_metal(color_t albedo, double fuzz) {
+metal_t *new_metal(color_t albedo, double fuzz) {
+  metal_t *metal = malloc(sizeof(metal_t));
+
   material_t mat = {
     .scatter_fn = &metal_scatter,
   };
 
-  return (metal_t){.material = mat, .albedo = albedo, .fuzz = fuzz > 1 ? 1 : fuzz};
+  *metal = (metal_t){.material = mat, .albedo = albedo, .fuzz = fuzz > 1 ? 1 : fuzz};
+  return metal;
 }
 
 typedef struct dielectric_t {
@@ -108,12 +115,15 @@ bool dielectric_scatter(const material_t *material, const ray_t *ray_in, const h
   return true;
 }
 
-dielectric_t new_dielectric(double ir) {
+dielectric_t *new_dielectric(double ir) {
+  dielectric_t *dielectric = malloc(sizeof(dielectric_t));
   material_t mat = {
     .scatter_fn = &dielectric_scatter
   };
 
-  return (dielectric_t){.material = mat, .ir = ir};
+  *dielectric = (dielectric_t){.material = mat, .ir = ir};
+
+  return dielectric;
 }
 
 #endif // !MATERIAL_H

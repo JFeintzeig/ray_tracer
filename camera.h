@@ -18,6 +18,7 @@ typedef struct {
   point3_t pixel_delta_v;
   int samples_per_pixel;
   int max_depth;
+  double vfov;
 } camera_t;
 
 camera_t initialize_camera(double aspect_ratio, int image_width) {
@@ -28,7 +29,10 @@ camera_t initialize_camera(double aspect_ratio, int image_width) {
   int max_depth = 50;
 
   double focal_length = 1.0;
-  double viewport_height = 2.0;
+  double vfov = 90;
+  double theta = degrees_to_radians(vfov);
+  double h = tan(theta/2);
+  double viewport_height = 2 * h * focal_length;
   double viewport_width = viewport_height * (double)image_width / (double)image_height;
   point3_t center = new_vec3(0.0, 0.0, 0.0);
 

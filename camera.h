@@ -18,32 +18,36 @@ typedef struct {
   point3_t pixel_delta_v;
   int samples_per_pixel;
   int max_depth;
-  double vfov;
 } camera_t;
 
-camera_t initialize_camera(double aspect_ratio, int image_width) {
+camera_t initialize_camera(double aspect_ratio, int image_width, double vfov, point3_t lookfrom, point3_t lookat, point3_t vup) {
   int image_height = (int)(image_width / aspect_ratio);
   image_height = (image_height < 1) ? 1 : image_height;
 
   int samples_per_pixel = 100;
   int max_depth = 50;
 
-  double focal_length = 1.0;
-  double vfov = 90;
+  point3_t center = lookfrom;
+
+  vec3_t view_direction = subtract(lookfrom, lookat);
+  double focal_length = length(&view_direction);
   double theta = degrees_to_radians(vfov);
   double h = tan(theta/2);
   double viewport_height = 2 * h * focal_length;
   double viewport_width = viewport_height * (double)image_width / (double)image_height;
-  point3_t center = new_vec3(0.0, 0.0, 0.0);
 
-  vec3_t viewport_u = new_vec3(viewport_width, 0.0, 0.0);
-  vec3_t viewport_v = new_vec3(0.0, -1*viewport_height, 0.0);
+  vec3_t w = normalize(view_direction);
+  vec3_t u = normalize(cross(vup, w));
+  vec3_t v = cross(w, u);
+
+  vec3_t viewport_u = scale(u, viewport_width);
+  vec3_t viewport_v = scale(v, -1.0*viewport_height);
 
   vec3_t pixel_delta_u = scale(viewport_u, 1.0/(double)(image_width));
   vec3_t pixel_delta_v = scale(viewport_v, 1.0/(double)(image_height));
   vec3_t pixel_delta_uv = add(pixel_delta_u, pixel_delta_v);
 
-  point3_t viewport_upper_left = subtract(center, new_vec3(0, 0, focal_length));
+  point3_t viewport_upper_left = subtract(center, scale(w, focal_length));
   subtract_equals(&viewport_upper_left, scale(viewport_u, 0.5));
   subtract_equals(&viewport_upper_left, scale(viewport_v, 0.5));
   point3_t pixel00_loc = add(viewport_upper_left, scale(pixel_delta_uv, 0.5));

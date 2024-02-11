@@ -18,9 +18,14 @@ typedef struct {
   point3_t pixel_delta_v;
   int samples_per_pixel;
   int max_depth;
+
+  double defocus_angle;
+  vec3_t defocus_disk_u;
+  vec3_t defocus_disk_v;
+
 } camera_t;
 
-camera_t initialize_camera(double aspect_ratio, int image_width, double vfov, point3_t lookfrom, point3_t lookat, point3_t vup) {
+camera_t initialize_camera(double aspect_ratio, int image_width, double vfov, point3_t lookfrom, point3_t lookat, point3_t vup, double defocus_angle, double focus_dist) {
   int image_height = (int)(image_width / aspect_ratio);
   image_height = (image_height < 1) ? 1 : image_height;
 
@@ -30,10 +35,9 @@ camera_t initialize_camera(double aspect_ratio, int image_width, double vfov, po
   point3_t center = lookfrom;
 
   vec3_t view_direction = subtract(lookfrom, lookat);
-  double focal_length = length(&view_direction);
   double theta = degrees_to_radians(vfov);
   double h = tan(theta/2);
-  double viewport_height = 2 * h * focal_length;
+  double viewport_height = 2 * h * focus_dist;
   double viewport_width = viewport_height * (double)image_width / (double)image_height;
 
   vec3_t w = normalize(view_direction);
@@ -47,10 +51,14 @@ camera_t initialize_camera(double aspect_ratio, int image_width, double vfov, po
   vec3_t pixel_delta_v = scale(viewport_v, 1.0/(double)(image_height));
   vec3_t pixel_delta_uv = add(pixel_delta_u, pixel_delta_v);
 
-  point3_t viewport_upper_left = subtract(center, scale(w, focal_length));
+  point3_t viewport_upper_left = subtract(center, scale(w, focus_dist));
   subtract_equals(&viewport_upper_left, scale(viewport_u, 0.5));
   subtract_equals(&viewport_upper_left, scale(viewport_v, 0.5));
   point3_t pixel00_loc = add(viewport_upper_left, scale(pixel_delta_uv, 0.5));
+
+  double defocus_radius = focus_dist * tan(degrees_to_radians(defocus_angle/2));
+  vec3_t defocus_disk_u = scale(u, defocus_radius);
+  vec3_t defocus_disk_v = scale(v, defocus_radius);
 
   camera_t camera = {
     .aspect_ratio = aspect_ratio,
@@ -61,7 +69,10 @@ camera_t initialize_camera(double aspect_ratio, int image_width, double vfov, po
     .pixel_delta_u = pixel_delta_u,
     .pixel_delta_v = pixel_delta_v,
     .samples_per_pixel = samples_per_pixel,
-    .max_depth = max_depth
+    .max_depth = max_depth,
+    .defocus_angle = defocus_angle,
+    .defocus_disk_u = defocus_disk_u,
+    .defocus_disk_v = defocus_disk_v
   };
   
   return camera;
@@ -91,6 +102,14 @@ color_t ray_color(const ray_t *r, int depth, const hittable_t *world) {
   }
 }
 
+point3_t defocus_disk_sample(const camera_t *camera) {
+  point3_t r = random_vec3_in_unit_disk();
+  point3_t out = camera->center;
+  add_equals(&out, scale(camera->defocus_disk_u, r.e[0]));
+  add_equals(&out, scale(camera->defocus_disk_v, r.e[1]));
+  return out;
+}
+
 void render(camera_t *camera, const hittable_t *world) {
   FILE *fp;
   fp = fopen("output.ppm", "w");
@@ -114,8 +133,9 @@ void render(camera_t *camera, const hittable_t *world) {
         add_equals(&pixel_sample,
                    scale(camera->pixel_delta_v, (-0.5 + random_double())));
 
-        vec3_t ray_direction = subtract(pixel_sample, camera->center);
-        ray_t ray = new_ray(camera->center, ray_direction);
+        point3_t ray_origin = (camera->defocus_angle <= 0) ? camera->center: defocus_disk_sample(camera);
+        vec3_t ray_direction = subtract(pixel_sample, ray_origin);
+        ray_t ray = new_ray(ray_origin, ray_direction);
 
         color_t sample_color = ray_color(&ray, camera->max_depth, (hittable_t *)world);
         add_equals(&color_sum, sample_color);

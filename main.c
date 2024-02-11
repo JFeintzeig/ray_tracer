@@ -23,8 +23,11 @@ int main() {
   point3_t lookfrom = new_vec3(-2, 2, 1);
   point3_t lookat = new_vec3(0, 0, -1);
   vec3_t vup = new_vec3(0, 1, 0);
+  double defocus_angle = 10;
+  double focus_dist = 3.4;
 
-  camera_t camera = initialize_camera(aspect_ratio, image_width, vfov, lookfrom, lookat, vup);
+  camera_t camera = initialize_camera(aspect_ratio, image_width, vfov, lookfrom,
+                                      lookat, vup, defocus_angle, focus_dist);
 
   lambertian_t material_ground = new_lambertian((color_t)new_vec3(0.8, 0.8, 0.0));
   lambertian_t material_center = new_lambertian((color_t)new_vec3(0.1, 0.2, 0.5));

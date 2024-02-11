@@ -124,6 +124,16 @@ vec3_t random_vec3_on_hemisphere(vec3_t normal) {
   }
 }
 
+vec3_t random_vec3_in_unit_disk() {
+  for (;;) {
+    vec3_t vec = random_vec3(-1.0, 1.0);
+    vec.e[2] = 0.0;
+    if (length_squared(&vec) < 1) {
+      return vec;
+    }
+  }
+}
+
 vec3_t reflect(vec3_t v, vec3_t n) {
   return subtract(v, scale(n, 2*dot(v, n)));
 }

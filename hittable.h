@@ -73,7 +73,7 @@ bool hit_fn_sphere(const hittable_t *hittable, const ray_t *r, const interval_t 
 
     rec->t = t;
     rec->p = propagate(*r, t);
-    vec3_t outward_normal = normalize(subtract(rec->p, center));
+    vec3_t outward_normal = scale(subtract(rec->p, center), 1.0/radius);
     set_face_normal(rec, r, outward_normal);
     rec->mat = sphere->hittable.material;
     return true;

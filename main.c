@@ -21,8 +21,10 @@ int main() {
   // Camera params
   double aspect_ratio = 16.0 / 9.0;
   int image_width = 1200;
-  int samples_per_pixel = 500;
-  int max_depth = 50;
+  //int samples_per_pixel = 500;
+  //int max_depth = 50;
+  int samples_per_pixel = 50;
+  int max_depth = 10;
 
   double vfov = 20;
   point3_t lookfrom = new_vec3(13, 2, 3);
@@ -44,8 +46,9 @@ int main() {
 
   dielectric_t *sphere_material_glass = new_dielectric(1.5);
 
-  for (int a = -11; a < 11; a++) {
-    for (int b = -11; b < 11; b++) {
+  // TODO: change both a and b back to start from -11
+  for (int a = 11; a < 11; a++) {
+    for (int b = 11; b < 11; b++) {
       double choose_mat = random_double();
       point3_t center = new_vec3(a + 0.9*random_double(), 0.2, b + 0.9*random_double());
 

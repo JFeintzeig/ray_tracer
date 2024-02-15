@@ -1,8 +1,8 @@
 #ifndef CAMERA_H
 #define CAMERA_H
 
-#include <assert.h>
 #include <pthread.h>
+#include <string.h>
 
 #include "color.h"
 #include "hittable.h"
@@ -11,7 +11,8 @@
 #include "rtweekend.h"
 #include "vec3.h"
 
-int NUM_THREADS = 5;
+//#define THREADED
+#define NUM_THREADS 10
 
 typedef struct {
   double aspect_ratio;
@@ -115,37 +116,39 @@ point3_t defocus_disk_sample(const camera_t *camera) {
 typedef struct render_args_t {
   const camera_t *camera;
   const hittable_t *world;
-  const vec3_t *pixel_center;
-  int n_samples;
-  color_t *color_sum;
-  pthread_mutex_t *mutex;
+  int scanline;
+  color_t *pixels;
 } render_args_t;
 
-void *render_one_pixel(void *args) {
+void *render_scanline(void *args) {
   render_args_t *rargs = (render_args_t *)args;
   const camera_t *camera = rargs->camera;
 
-  color_t thread_color_sum = new_vec3(0.0, 0.0, 0.0);
-  for (int k=0; k < rargs->n_samples; k++) {
-    point3_t pixel_sample = add(
-      *(rargs->pixel_center),
-      scale(camera->pixel_delta_u, (-0.5 + random_double()))
-    );
-    add_equals(&pixel_sample,
-               scale(camera->pixel_delta_v, (-0.5 + random_double())));
+  for (int i = 0; i < camera->image_width; i++) {
+    point3_t pixel_center = add(camera->pixel00_loc, scale(camera->pixel_delta_u, i));
+    add_equals(&pixel_center, scale(camera->pixel_delta_v, rargs->scanline));
+    color_t color_sum = new_vec3(0.0, 0.0, 0.0);
 
-    point3_t ray_origin = (camera->defocus_angle <= 0) ? camera->center: defocus_disk_sample(camera);
-    vec3_t ray_direction = subtract(pixel_sample, ray_origin);
-    ray_t ray = new_ray(ray_origin, ray_direction);
+    for (int k=0; k < camera->samples_per_pixel; k++) {
+      point3_t pixel_sample = add(
+        pixel_center,
+        scale(camera->pixel_delta_u, (-0.5 + random_double()))
+      );
+      add_equals(&pixel_sample,
+                 scale(camera->pixel_delta_v, (-0.5 + random_double())));
 
-    color_t sample_color = ray_color(&ray, camera->max_depth, (hittable_t *)(rargs->world));
-    add_equals(&thread_color_sum, sample_color);
+      point3_t ray_origin = (camera->defocus_angle <= 0) ? camera->center: defocus_disk_sample(camera);
+      vec3_t ray_direction = subtract(pixel_sample, ray_origin);
+      ray_t ray = new_ray(ray_origin, ray_direction);
+
+      color_t sample_color = ray_color(&ray, camera->max_depth, (hittable_t *)(rargs->world));
+      add_equals(&color_sum, sample_color);
+    }
+
+    color_t pixel_color = scale(color_sum, 1.0/camera->samples_per_pixel);
+    int current_pixel_num = rargs->scanline * camera->image_width + i;
+    memcpy(rargs->pixels + current_pixel_num, &pixel_color, sizeof(color_t));
   }
-
-  pthread_mutex_lock(rargs->mutex);
-  add_equals(rargs->color_sum, thread_color_sum);
-  pthread_mutex_unlock(rargs->mutex);
-
   return NULL;
 }
 
@@ -153,13 +156,53 @@ void render(camera_t *camera, const hittable_t *world) {
   FILE *fp;
   fp = fopen("output.ppm", "w");
 
-  pthread_mutex_t mutex;
-  int rc = pthread_mutex_init(&mutex, NULL);
-  assert(rc == 0);
-
   fprintf(fp, "P3\n");
   fprintf(fp, "%d %d\n", camera->image_width, camera->image_height);
   fprintf(fp, "255\n");
+
+  #ifdef THREADED
+
+  int n_pixels = camera->image_height * camera->image_width;
+  color_t *pixels = (color_t *)malloc(sizeof(color_t) * n_pixels);
+  render_args_t *thread_args = (render_args_t *)malloc(sizeof(render_args_t) * NUM_THREADS);
+  render_args_t render_args_base = {
+    .camera = camera,
+    .world = world,
+    .scanline = 0, // to be filled in on each thread creation
+    .pixels = pixels
+  };
+
+  for (int i = 0; i < NUM_THREADS; i++) {
+    memcpy(thread_args + sizeof(render_args_t)*i, &render_args_base, sizeof(render_args_t));
+  }
+
+  for (int j = 0; j < camera->image_height; j+=NUM_THREADS) {
+    printf("Scanlines remaining: %d\n", camera->image_height - j);
+
+    pthread_t threads[NUM_THREADS];
+    for (int k = 0; k < NUM_THREADS && j+k < camera->image_height; k++) {
+      render_args_t *this_thread_args = thread_args + sizeof(render_args_t)*k;
+      this_thread_args->scanline = j+k;
+
+      int result_code = pthread_create(&threads[k], NULL, render_scanline, this_thread_args);
+      if(result_code != 0) {
+        printf("**************** problem creating thread *****************\n");
+      }
+    }
+
+    for (int k = 0; k < NUM_THREADS && j+k < camera->image_height; k++) {
+      int result_code = pthread_join(threads[k], NULL);
+      if(result_code != 0) {
+        printf("*************** problem joining thread *****************\n");
+        printf("%d\n", result_code);
+        abort();
+      }
+    }
+  }
+
+  write_pixels(fp, pixels, n_pixels);
+
+  #else
 
   for (int j = 0; j < camera->image_height; j++) {
     printf("Scanlines remaining: %d\n", camera->image_height - j);
@@ -168,39 +211,6 @@ void render(camera_t *camera, const hittable_t *world) {
       add_equals(&pixel_center, scale(camera->pixel_delta_v, j));
       color_t color_sum = new_vec3(0.0, 0.0, 0.0);
 
-      // THREAD SHENANAGINS START
-      pthread_t threads[NUM_THREADS];
-      render_args_t render_args = {
-        .camera = camera,
-        .world = world,
-        .pixel_center = &pixel_center,
-        .n_samples = camera->samples_per_pixel / NUM_THREADS,
-        .color_sum = &color_sum,
-        .mutex = &mutex
-      };
-
-      for (int k = 0; k < NUM_THREADS; k++) {
-        int result_code = pthread_create(&threads[k], NULL, render_one_pixel, &render_args);
-        if(result_code != 0) {
-          printf("**************** problem creating thread *****************\n");
-        }
-      }
-
-      for (int k = 0; k < NUM_THREADS; k++) {
-        int result_code = pthread_join(threads[k], NULL);
-        if(result_code != 0) {
-          printf("*************** problem joining thread *****************\n");
-          printf("%d\n", result_code);
-          abort();
-        }
-      }
-
-      color_t pixel_color = scale(color_sum, 1.0/camera->samples_per_pixel);
-
-      write_color(fp, pixel_color);
-      // THREAD SHENANAGINS END
-
-      /*
       for (int k=0; k < camera->samples_per_pixel; k++) {
         point3_t pixel_sample = add(
           pixel_center,
@@ -219,10 +229,13 @@ void render(camera_t *camera, const hittable_t *world) {
 
       color_t pixel_color = scale(color_sum, 1.0/camera->samples_per_pixel);
 
-      write_color(fp, pixel_color);
-      */
+      write_one_pixel(fp, pixel_color);
+
     }
   }
+
+  #endif // THREADED
+
   printf("Done\n");
 }
 

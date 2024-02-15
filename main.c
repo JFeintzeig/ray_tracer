@@ -21,10 +21,10 @@ int main() {
   // Camera params
   double aspect_ratio = 16.0 / 9.0;
   int image_width = 1200;
-  //int samples_per_pixel = 500;
-  //int max_depth = 50;
-  int samples_per_pixel = 50;
-  int max_depth = 10;
+  int samples_per_pixel = 500;
+  int max_depth = 50;
+  //int samples_per_pixel = 50;
+  //int max_depth = 10;
 
   double vfov = 20;
   point3_t lookfrom = new_vec3(13, 2, 3);

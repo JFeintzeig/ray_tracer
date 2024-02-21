@@ -11,7 +11,7 @@
 #include "rtweekend.h"
 #include "vec3.h"
 
-//#define THREADED
+#define THREADED
 #define NUM_THREADS 10
 
 typedef struct {
@@ -147,6 +147,7 @@ void *render_scanline(void *args) {
 
     color_t pixel_color = scale(color_sum, 1.0/camera->samples_per_pixel);
     int current_pixel_num = rargs->scanline * camera->image_width + i;
+    //*(rargs->pixels + current_pixel_num) = pixel_color;
     memcpy(rargs->pixels + current_pixel_num, &pixel_color, sizeof(color_t));
   }
   return NULL;

@@ -118,7 +118,7 @@ typedef struct render_args_t {
   const camera_t *camera;
   sphere_list_t *sphere_list;
   int scanline_start;
-  int scanline_end;
+  int num_threads;
   color_t *pixels;
 } render_args_t;
 
@@ -126,10 +126,8 @@ void *render_scanline(void *args) {
   render_args_t *rargs = (render_args_t *)args;
   const camera_t *camera = rargs->camera;
 
-  for (int scanline = rargs->scanline_start; scanline < rargs->scanline_end; scanline++) {
-    if (scanline % 10 == 0) {
-      printf("Scanline %d\n", scanline);
-    }
+  for (int scanline = rargs->scanline_start; scanline < camera->image_height; scanline+=rargs->num_threads) {
+    printf("Thread %d Scanline %d\n", rargs->scanline_start, scanline);
     for (int i = 0; i < camera->image_width; i++) {
       point3_t pixel_center = add(camera->pixel00_loc, scale(camera->pixel_delta_u, i));
       add_equals(&pixel_center, scale(camera->pixel_delta_v, scanline));
@@ -178,7 +176,7 @@ void render(camera_t *camera, sphere_list_t *sphere_list) {
     .camera = camera,
     .sphere_list = sphere_list,
     .scanline_start = 0, // to be filled in on each thread creation
-    .scanline_end = 0, // to be filled in on each thread creation
+    .num_threads = NUM_THREADS,
     .pixels = pixels
   };
 
@@ -186,17 +184,10 @@ void render(camera_t *camera, sphere_list_t *sphere_list) {
     memcpy(thread_args + i, &render_args_base, sizeof(render_args_t));
   }
 
-  int scanlines_per_thread = 1 + camera->image_height / NUM_THREADS;
-  int max_scanline = camera->image_height;
-  printf("# of threads: %d\nScanlines per thread: %d\n", NUM_THREADS, scanlines_per_thread);
-
   pthread_t threads[NUM_THREADS];
   for (int k = 0; k < NUM_THREADS; k++) {
     render_args_t *this_thread_args = thread_args + k;
-    this_thread_args->scanline_start = k*scanlines_per_thread;
-    int scanline_end = (k+1)*scanlines_per_thread;
-    this_thread_args->scanline_end = scanline_end > max_scanline ? max_scanline : scanline_end;
-    printf("Thread %d, scanlines %d to %d\n", k, k*scanlines_per_thread, scanline_end);
+    this_thread_args->scanline_start = k;
 
     int result_code = pthread_create(&threads[k], NULL, render_scanline, this_thread_args);
     if(result_code != 0) {

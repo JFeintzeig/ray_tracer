@@ -2,8 +2,9 @@ A basic CPU-based ray-tracer written in C. I built this by roughly following alo
 
 At first it was quite slow, taking over 3 hours to render the cover image of the book! Through pairing with others at the Recurse Center, I managed to speed it up so it now runs ~100x faster. We did this by:
 * Using compiler optimization flags (~15x speed-up).
-* Multi-threading (5.6x speed-up).
+* Multithreading (5.6x speed-up).
 * Refactored code to remove abstract classes / function pointers (~10% improvement).
+* Refactored multithreading to better split load across threads (~10% improvement).
 * Replace stdlib `rand()` with a fast but dumb inline PRNG (~6% improvement).
 * Normalize ray direction up-front to simplify `hit_sphere()` calculation (3%).
 * Attempted to make the main function tail-call recursive (~2%).

@@ -30,7 +30,7 @@ bool lambertian_scatter(const material_t *material, const ray_t *ray_in, const h
   }
 
   scattered->origin = rec->p;
-  scattered->direction = scatter_direction;
+  scattered->direction = normalize(scatter_direction);
   *attenuation = lambertian->albedo;
   return true;
 }
@@ -62,7 +62,7 @@ bool metal_scatter(const material_t *material, const ray_t *ray_in, const hit_re
   }
 
   scattered->origin = rec->p;
-  scattered->direction = scatter_direction;
+  scattered->direction = normalize(scatter_direction);
   *attenuation = metal->albedo;
   return (dot(scatter_direction, rec->normal) > 0);
 }
@@ -104,10 +104,10 @@ bool dielectric_scatter(const material_t *material, const ray_t *ray_in, const h
   double sin_theta = sqrt(1-cos_theta * cos_theta);
   bool tir = refraction_ratio*sin_theta > 1;
   if (tir || dielectric_reflectance(cos_theta, refraction_ratio) > random_double()) {
-    scattered->direction = reflect(unit_direction, rec->normal);
+    scattered->direction = normalize(reflect(unit_direction, rec->normal));
   } else {
     // refract
-    scattered->direction = refract(unit_direction, rec->normal, refraction_ratio);
+    scattered->direction = normalize(refract(unit_direction, rec->normal, refraction_ratio));
   }
 
   scattered->origin = rec->p;

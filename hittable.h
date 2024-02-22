@@ -36,7 +36,8 @@ bool hit_sphere(const sphere_t *sphere, const ray_t *r, const interval_t *interv
   double radius = sphere->radius;
 
   vec3_t a_c = subtract(r->origin, center);
-  double a = length_squared(&r->direction);
+  //double a = length_squared(&r->direction);
+  double a = 1.0;
   double half_b = dot(r->direction, a_c);
   double c = length_squared(&a_c) - radius*radius;
 
@@ -46,10 +47,8 @@ bool hit_sphere(const sphere_t *sphere, const ray_t *r, const interval_t *interv
   } else {
     // confusing: find the closest root in interval
     double t = (-1*half_b - sqrt(discriminant)) / a;
-    //if (t <= t_min || t >= t_max) {
     if (!interval_surrounds(interval, t)) {
       t = (-1*half_b + sqrt(discriminant)) / a;
-      //if (t <= t_min || t >= t_max) {
       if (!interval_surrounds(interval, t)) {
         return false;
       }

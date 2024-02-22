@@ -81,7 +81,7 @@ camera_t initialize_camera(double aspect_ratio, int image_width, int samples_per
   return camera;
 }
 
-color_t ray_color(const ray_t *r, int depth, sphere_list_t *sphere_list) {
+color_t ray_color(const ray_t *r, int depth, sphere_list_t *sphere_list, color_t attenuation) {
   if (depth == 0) {
     return new_vec3(0.0, 0.0, 0.0);
   }
@@ -91,17 +91,18 @@ color_t ray_color(const ray_t *r, int depth, sphere_list_t *sphere_list) {
 
   if (hit_sphere_list(sphere_list, r, &interval, &rec)) {
     ray_t nray;
-    color_t attenuation;
-    if (scatter(rec.mat, r, &rec, &attenuation, &nray)) {
-      return multiply(attenuation, ray_color(&nray, depth -1, sphere_list));
-    }else {
+    color_t new_attenuation;
+    if (scatter(rec.mat, r, &rec, &new_attenuation, &nray)) {
+      color_t next_attenuation = multiply(attenuation, new_attenuation);
+      return ray_color(&nray, depth -1, sphere_list, next_attenuation);
+    } else {
       return new_vec3(0.0, 0.0, 0.0);
     }
   } else {
     double a = 0.5 * (1.0 + normalize(r->direction).e[1]);
     color_t white = new_vec3(1.0, 1.0, 1.0);
     color_t blue = new_vec3(0.5, 0.7, 1.0);
-    return add(scale(white, 1-a), scale(blue, a));
+    return multiply(attenuation, add(scale(white, 1-a), scale(blue, a)));
   }
 }
 
@@ -138,10 +139,11 @@ void *render_scanline(void *args) {
                  scale(camera->pixel_delta_v, (-0.5 + random_double())));
 
       point3_t ray_origin = (camera->defocus_angle <= 0) ? camera->center: defocus_disk_sample(camera);
-      vec3_t ray_direction = subtract(pixel_sample, ray_origin);
+      vec3_t ray_direction = normalize(subtract(pixel_sample, ray_origin));
       ray_t ray = new_ray(ray_origin, ray_direction);
 
-      color_t sample_color = ray_color(&ray, camera->max_depth, (rargs->sphere_list));
+      color_t attenuation = new_vec3(1.0, 1.0, 1.0);
+      color_t sample_color = ray_color(&ray, camera->max_depth, (rargs->sphere_list), attenuation);
       add_equals(&color_sum, sample_color);
     }
 
@@ -221,10 +223,11 @@ void render(camera_t *camera, sphere_list_t *sphere_list) {
                    scale(camera->pixel_delta_v, (-0.5 + random_double())));
 
         point3_t ray_origin = (camera->defocus_angle <= 0) ? camera->center: defocus_disk_sample(camera);
-        vec3_t ray_direction = subtract(pixel_sample, ray_origin);
+        vec3_t ray_direction = normalize(subtract(pixel_sample, ray_origin));
         ray_t ray = new_ray(ray_origin, ray_direction);
 
-        color_t sample_color = ray_color(&ray, camera->max_depth, sphere_list);
+        color_t attenuation = new_vec3(1.0, 1.0, 1.0);
+        color_t sample_color = ray_color(&ray, camera->max_depth, sphere_list, attenuation);
         add_equals(&color_sum, sample_color);
       }
 

@@ -2,7 +2,7 @@ targets := $(wildcard *.c) $(wildcard *.h)
 CFLAGS := -Wall -O2 -flto
 LDLIBS := -lm -lpthread
 
-main: mt19937.o
+#main: mt19937.o
 
 ray-tracer: $(targets)
 	gcc -Wall -O2 -fsanitize=address -o ray-tracer main.c

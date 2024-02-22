@@ -11,7 +11,7 @@
 #include "rtweekend.h"
 #include "vec3.h"
 
-//#define THREADED
+#define THREADED
 #define NUM_THREADS 10
 
 typedef struct {
@@ -117,7 +117,8 @@ point3_t defocus_disk_sample(const camera_t *camera) {
 typedef struct render_args_t {
   const camera_t *camera;
   sphere_list_t *sphere_list;
-  int scanline;
+  int scanline_start;
+  int scanline_end;
   color_t *pixels;
 } render_args_t;
 
@@ -125,32 +126,37 @@ void *render_scanline(void *args) {
   render_args_t *rargs = (render_args_t *)args;
   const camera_t *camera = rargs->camera;
 
-  for (int i = 0; i < camera->image_width; i++) {
-    point3_t pixel_center = add(camera->pixel00_loc, scale(camera->pixel_delta_u, i));
-    add_equals(&pixel_center, scale(camera->pixel_delta_v, rargs->scanline));
-    color_t color_sum = new_vec3(0.0, 0.0, 0.0);
-
-    for (int k=0; k < camera->samples_per_pixel; k++) {
-      point3_t pixel_sample = add(
-        pixel_center,
-        scale(camera->pixel_delta_u, (-0.5 + random_double()))
-      );
-      add_equals(&pixel_sample,
-                 scale(camera->pixel_delta_v, (-0.5 + random_double())));
-
-      point3_t ray_origin = (camera->defocus_angle <= 0) ? camera->center: defocus_disk_sample(camera);
-      vec3_t ray_direction = normalize(subtract(pixel_sample, ray_origin));
-      ray_t ray = new_ray(ray_origin, ray_direction);
-
-      color_t attenuation = new_vec3(1.0, 1.0, 1.0);
-      color_t sample_color = ray_color(&ray, camera->max_depth, (rargs->sphere_list), attenuation);
-      add_equals(&color_sum, sample_color);
+  for (int scanline = rargs->scanline_start; scanline < rargs->scanline_end; scanline++) {
+    if (scanline % 10 == 0) {
+      printf("Scanline %d\n", scanline);
     }
+    for (int i = 0; i < camera->image_width; i++) {
+      point3_t pixel_center = add(camera->pixel00_loc, scale(camera->pixel_delta_u, i));
+      add_equals(&pixel_center, scale(camera->pixel_delta_v, scanline));
+      color_t color_sum = new_vec3(0.0, 0.0, 0.0);
 
-    color_t pixel_color = scale(color_sum, 1.0/camera->samples_per_pixel);
-    int current_pixel_num = rargs->scanline * camera->image_width + i;
-    //*(rargs->pixels + current_pixel_num) = pixel_color;
-    memcpy(rargs->pixels + current_pixel_num, &pixel_color, sizeof(color_t));
+      for (int k=0; k < camera->samples_per_pixel; k++) {
+        point3_t pixel_sample = add(
+          pixel_center,
+          scale(camera->pixel_delta_u, (-0.5 + random_double()))
+        );
+        add_equals(&pixel_sample,
+                   scale(camera->pixel_delta_v, (-0.5 + random_double())));
+
+        point3_t ray_origin = (camera->defocus_angle <= 0) ? camera->center: defocus_disk_sample(camera);
+        vec3_t ray_direction = normalize(subtract(pixel_sample, ray_origin));
+        ray_t ray = new_ray(ray_origin, ray_direction);
+
+        color_t attenuation = new_vec3(1.0, 1.0, 1.0);
+        color_t sample_color = ray_color(&ray, camera->max_depth, (rargs->sphere_list), attenuation);
+        add_equals(&color_sum, sample_color);
+      }
+
+      color_t pixel_color = scale(color_sum, 1.0/camera->samples_per_pixel);
+      int current_pixel_num = scanline * camera->image_width + i;
+      //*(rargs->pixels + current_pixel_num) = pixel_color;
+      memcpy(rargs->pixels + current_pixel_num, &pixel_color, sizeof(color_t));
+    }
   }
   return NULL;
 }
@@ -171,35 +177,39 @@ void render(camera_t *camera, sphere_list_t *sphere_list) {
   render_args_t render_args_base = {
     .camera = camera,
     .sphere_list = sphere_list,
-    .scanline = 0, // to be filled in on each thread creation
+    .scanline_start = 0, // to be filled in on each thread creation
+    .scanline_end = 0, // to be filled in on each thread creation
     .pixels = pixels
   };
 
   for (int i = 0; i < NUM_THREADS; i++) {
-    memcpy(thread_args + sizeof(render_args_t)*i, &render_args_base, sizeof(render_args_t));
+    memcpy(thread_args + i, &render_args_base, sizeof(render_args_t));
   }
 
-  for (int j = 0; j < camera->image_height; j+=NUM_THREADS) {
-    printf("Scanlines remaining: %d\n", camera->image_height - j);
+  int scanlines_per_thread = 1 + camera->image_height / NUM_THREADS;
+  int max_scanline = camera->image_height;
+  printf("# of threads: %d\nScanlines per thread: %d\n", NUM_THREADS, scanlines_per_thread);
 
-    pthread_t threads[NUM_THREADS];
-    for (int k = 0; k < NUM_THREADS && j+k < camera->image_height; k++) {
-      render_args_t *this_thread_args = thread_args + sizeof(render_args_t)*k;
-      this_thread_args->scanline = j+k;
+  pthread_t threads[NUM_THREADS];
+  for (int k = 0; k < NUM_THREADS; k++) {
+    render_args_t *this_thread_args = thread_args + k;
+    this_thread_args->scanline_start = k*scanlines_per_thread;
+    int scanline_end = (k+1)*scanlines_per_thread;
+    this_thread_args->scanline_end = scanline_end > max_scanline ? max_scanline : scanline_end;
+    printf("Thread %d, scanlines %d to %d\n", k, k*scanlines_per_thread, scanline_end);
 
-      int result_code = pthread_create(&threads[k], NULL, render_scanline, this_thread_args);
-      if(result_code != 0) {
-        printf("**************** problem creating thread *****************\n");
-      }
+    int result_code = pthread_create(&threads[k], NULL, render_scanline, this_thread_args);
+    if(result_code != 0) {
+      printf("**************** problem creating thread *****************\n");
     }
+  }
 
-    for (int k = 0; k < NUM_THREADS && j+k < camera->image_height; k++) {
-      int result_code = pthread_join(threads[k], NULL);
-      if(result_code != 0) {
-        printf("*************** problem joining thread *****************\n");
-        printf("%d\n", result_code);
-        abort();
-      }
+  for (int k = 0; k < NUM_THREADS; k++) {
+    int result_code = pthread_join(threads[k], NULL);
+    if(result_code != 0) {
+      printf("*************** problem joining thread *****************\n");
+      printf("%d\n", result_code);
+      abort();
     }
   }
 

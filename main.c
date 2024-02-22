@@ -42,7 +42,6 @@ int main() {
 
   dielectric_t *sphere_material_glass = new_dielectric(1.5);
 
-  // TODO: change both a and b back to start from -11
   for (int a = -11; a < 11; a++) {
     for (int b = -11; b < 11; b++) {
       double choose_mat = random_double();

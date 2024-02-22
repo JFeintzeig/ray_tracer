@@ -44,8 +44,8 @@ int main() {
   dielectric_t *sphere_material_glass = new_dielectric(1.5);
 
   // TODO: change both a and b back to start from -11
-  for (int a = -11; a < 11; a++) {
-    for (int b = -11; b < 11; b++) {
+  for (int a = 11; a < 11; a++) {
+    for (int b = 11; b < 11; b++) {
       double choose_mat = random_double();
       point3_t center = new_vec3(a + 0.9*random_double(), 0.2, b + 0.9*random_double());
 
@@ -86,6 +86,6 @@ int main() {
   metal_t *material3 = new_metal(new_vec3(0.7, 0.6, 0.5), 0.0);
   add_sphere(sphere_list, new_vec3(4, 1, 0), 1.0, (material_t *)material3);
 
-  render(&camera, (hittable_t *)sphere_list);
+  render(&camera, sphere_list);
   return 0;
 }

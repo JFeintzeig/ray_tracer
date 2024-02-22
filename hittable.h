@@ -25,29 +25,13 @@ void set_face_normal(hit_record_t *rec, const ray_t *r, vec3_t outward_normal) {
   rec->normal = rec->front_face ? outward_normal : scale(outward_normal, -1.0);
 }
 
-struct hittable_t;
-
-typedef bool (hit_fn_t)(const struct hittable_t *hittable, const ray_t *r, const interval_t *interval, hit_record_t *rec);
-
-typedef struct hittable_t {
-  hit_fn_t *hit_fn;
-  material_t *material;
-} hittable_t;
-
-bool hit(const hittable_t *hittable, const ray_t *r, const interval_t *interval, hit_record_t *rec) {
-  return (*(hittable->hit_fn))(hittable, r, interval, rec);
-}
-
-struct sphere_t;
-
 typedef struct sphere_t {
-  hittable_t hittable;
   point3_t center;
   double radius;
+  material_t *material;
 } sphere_t;
 
-bool hit_fn_sphere(const hittable_t *hittable, const ray_t *r, const interval_t *interval, hit_record_t *rec) {
-  sphere_t *sphere = (sphere_t *)hittable;
+bool hit_sphere(const sphere_t *sphere, const ray_t *r, const interval_t *interval, hit_record_t *rec) {
   point3_t center = sphere->center;
   double radius = sphere->radius;
 
@@ -75,7 +59,7 @@ bool hit_fn_sphere(const hittable_t *hittable, const ray_t *r, const interval_t 
     rec->p = propagate(*r, t);
     vec3_t outward_normal = scale(subtract(rec->p, center), 1.0/radius);
     set_face_normal(rec, r, outward_normal);
-    rec->mat = sphere->hittable.material;
+    rec->mat = sphere->material;
     return true;
   }
 }
@@ -83,15 +67,10 @@ bool hit_fn_sphere(const hittable_t *hittable, const ray_t *r, const interval_t 
 sphere_t new_sphere(point3_t center, double radius, material_t *material) {
   sphere_t sphere = {
     .center = center,
-    .radius = radius
-  };
-
-  hittable_t hittable = {
-    .hit_fn = &hit_fn_sphere,
+    .radius = radius,
     .material = material
   };
 
-  sphere.hittable = hittable;
   return sphere;
 }
 
@@ -99,14 +78,12 @@ sphere_t new_sphere(point3_t center, double radius, material_t *material) {
 // we need to manage memory. if we make it a list of `hittables`, that has a
 // very different memory footprint from a list of `spheres` or another object type.
 typedef struct {
-  hittable_t hittable;
   size_t nth_sphere;
   size_t max_spheres;
   sphere_t spheres[];
 } sphere_list_t;
 
-bool hit_fn_sphere_list(const hittable_t *hittable, const ray_t *r, const interval_t *interval, hit_record_t *rec) {
-  sphere_list_t *sphere_list = (sphere_list_t *)hittable;
+bool hit_sphere_list(sphere_list_t *sphere_list, const ray_t *r, const interval_t *interval, hit_record_t *rec) {
   hit_record_t temp_rec;
   double closest_so_far = interval->max;
   bool is_hit = false;
@@ -115,7 +92,7 @@ bool hit_fn_sphere_list(const hittable_t *hittable, const ray_t *r, const interv
         sphere != &sphere_list->spheres[sphere_list->nth_sphere];
         sphere++) {
     interval_t this_interval = {.min = interval->min, .max = closest_so_far};
-    if (hit((hittable_t *)sphere, r, &this_interval, &temp_rec)) {
+    if (hit_sphere(sphere, r, &this_interval, &temp_rec)) {
       is_hit = true;
       closest_so_far = temp_rec.t;
       rec->p = temp_rec.p;
@@ -134,11 +111,6 @@ sphere_list_t *new_sphere_list(size_t n_spheres) {
   sphere_list->max_spheres = n_spheres;
   sphere_list->nth_sphere = 0;
 
-  hittable_t hittable = {
-    .hit_fn = &hit_fn_sphere_list
-  };
-
-  sphere_list->hittable = hittable;
   return sphere_list;
 }
 

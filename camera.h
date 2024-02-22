@@ -11,7 +11,7 @@
 #include "rtweekend.h"
 #include "vec3.h"
 
-#define THREADED
+//#define THREADED
 #define NUM_THREADS 10
 
 typedef struct {
@@ -81,7 +81,7 @@ camera_t initialize_camera(double aspect_ratio, int image_width, int samples_per
   return camera;
 }
 
-color_t ray_color(const ray_t *r, int depth, const hittable_t *world) {
+color_t ray_color(const ray_t *r, int depth, sphere_list_t *sphere_list) {
   if (depth == 0) {
     return new_vec3(0.0, 0.0, 0.0);
   }
@@ -89,11 +89,11 @@ color_t ray_color(const ray_t *r, int depth, const hittable_t *world) {
   hit_record_t rec;
   interval_t interval = {.min = 0.001, .max = INFINITY};
 
-  if (hit(world, r, &interval, &rec)) {
+  if (hit_sphere_list(sphere_list, r, &interval, &rec)) {
     ray_t nray;
     color_t attenuation;
     if (scatter(rec.mat, r, &rec, &attenuation, &nray)) {
-      return multiply(attenuation, ray_color(&nray, depth -1, world));
+      return multiply(attenuation, ray_color(&nray, depth -1, sphere_list));
     }else {
       return new_vec3(0.0, 0.0, 0.0);
     }
@@ -115,7 +115,7 @@ point3_t defocus_disk_sample(const camera_t *camera) {
 
 typedef struct render_args_t {
   const camera_t *camera;
-  const hittable_t *world;
+  sphere_list_t *sphere_list;
   int scanline;
   color_t *pixels;
 } render_args_t;
@@ -141,7 +141,7 @@ void *render_scanline(void *args) {
       vec3_t ray_direction = subtract(pixel_sample, ray_origin);
       ray_t ray = new_ray(ray_origin, ray_direction);
 
-      color_t sample_color = ray_color(&ray, camera->max_depth, (hittable_t *)(rargs->world));
+      color_t sample_color = ray_color(&ray, camera->max_depth, (rargs->sphere_list));
       add_equals(&color_sum, sample_color);
     }
 
@@ -153,7 +153,7 @@ void *render_scanline(void *args) {
   return NULL;
 }
 
-void render(camera_t *camera, const hittable_t *world) {
+void render(camera_t *camera, sphere_list_t *sphere_list) {
   FILE *fp;
   fp = fopen("output.ppm", "w");
 
@@ -168,7 +168,7 @@ void render(camera_t *camera, const hittable_t *world) {
   render_args_t *thread_args = (render_args_t *)malloc(sizeof(render_args_t) * NUM_THREADS);
   render_args_t render_args_base = {
     .camera = camera,
-    .world = world,
+    .sphere_list = sphere_list,
     .scanline = 0, // to be filled in on each thread creation
     .pixels = pixels
   };
@@ -224,7 +224,7 @@ void render(camera_t *camera, const hittable_t *world) {
         vec3_t ray_direction = subtract(pixel_sample, ray_origin);
         ray_t ray = new_ray(ray_origin, ray_direction);
 
-        color_t sample_color = ray_color(&ray, camera->max_depth, (hittable_t *)world);
+        color_t sample_color = ray_color(&ray, camera->max_depth, sphere_list);
         add_equals(&color_sum, sample_color);
       }
 

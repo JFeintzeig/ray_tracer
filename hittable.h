@@ -74,9 +74,6 @@ sphere_t new_sphere(point3_t center, double radius, material_t *material) {
   return sphere;
 }
 
-// TODO: can we make this hold a dynamic list of hittables of different types?
-// we need to manage memory. if we make it a list of `hittables`, that has a
-// very different memory footprint from a list of `spheres` or another object type.
 typedef struct {
   size_t nth_sphere;
   size_t max_spheres;
@@ -106,7 +103,7 @@ bool hit_sphere_list(sphere_list_t *sphere_list, const ray_t *r, const interval_
 }
 
 sphere_list_t *new_sphere_list(size_t n_spheres) {
-  // TODO: what about free()!?!?
+  // NB: we never free()
   sphere_list_t *sphere_list = malloc(sizeof(sphere_list_t) + n_spheres * sizeof(sphere_t));
   sphere_list->max_spheres = n_spheres;
   sphere_list->nth_sphere = 0;

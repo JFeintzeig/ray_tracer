@@ -1,6 +1,6 @@
 targets := $(wildcard *.c) $(wildcard *.h)
-CFLAGS := -Wall -O2 -flto -fsanitize=address
-LDFLAGS := -lm -lpthread
+CFLAGS := -Wall -O2 -flto
+LDLIBS := -lm -lpthread
 
 main: mt19937.o
 

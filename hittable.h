@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#include <arm_neon.h>
+
 #include "vec3.h"
 #include "ray.h"
 #include "interval.h"
@@ -35,20 +37,33 @@ bool hit_sphere(const sphere_t *sphere, const ray_t *r, const interval_t *interv
   point3_t center = sphere->center;
   float radius = sphere->radius;
 
-  vec3_t a_c = subtract(r->origin, center);
-  //float a = length_squared(&r->direction);
-  float a = 1.0;
-  float half_b = dot(r->direction, a_c);
-  float c = length_squared(&a_c) - radius*radius;
+  float32x4_t origin = vld1q_f32(&r->origin.e[0]);
+  float32x4_t direction = vld1q_f32(&r->direction.e[0]);
+  float32x4_t center_vec = vld1q_f32(&center.e[0]);
 
-  float discriminant = half_b*half_b - a*c;
+  float32x4_t a_c = vsubq_f32(origin, center_vec);
+  float32x4_t half_b_vec = vmulq_f32(direction, a_c);
+  float half_b = vaddvq_f32(half_b_vec); //horizontal sum
+  float32x4_t length_squared_vec = vmulq_f32(a_c, a_c);
+  float c = vaddvq_f32(length_squared_vec) - radius*radius;
+
+  //vec3_t a_c = subtract(r->origin, center);
+  //float half_b = dot(r->direction, a_c);
+  //float c = length_squared(&a_c) - radius*radius;
+
+  // NB: `a` equals 1 because we pre-normalize
+  // so we are implicitly multiplying a*c in the line below,
+  // and implicitly dividing by a in the calculation for `t` below
+  //float a = length_squared(&r->direction);
+  //float a = 1.0;
+  float discriminant = half_b*half_b - c;
   if (discriminant < 0) {
     return false;
   } else {
     // confusing: find the closest root in interval
-    float t = (-1*half_b - sqrt(discriminant)) / a;
+    float t = (-1*half_b - sqrt(discriminant));
     if (!interval_surrounds(interval, t)) {
-      t = (-1*half_b + sqrt(discriminant)) / a;
+      t = (-1*half_b + sqrt(discriminant));
       if (!interval_surrounds(interval, t)) {
         return false;
       }

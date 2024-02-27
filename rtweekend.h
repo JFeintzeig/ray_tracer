@@ -12,9 +12,9 @@
 #include "mt19937.h"
 #endif // TWISTER
 
-const double pi = 3.1415926535897932385;
+const float pi = 3.1415926535897932385;
 
-double degrees_to_radians(double degrees) {
+float degrees_to_radians(float degrees) {
   return degrees * pi / 180.0;
 }
 
@@ -40,31 +40,31 @@ int fast_rand(void) {
 
 struct MT19937state mt = INIT_MT19937state;
 
-double random_double() {
+float random_float() {
   return (float)MT19937extract(&mt) / ((float)(1L << 32));
 }
 
-double random_double_range(double min, double max) {
-  return min + (max - min) * (float)random_double();
+float random_float_range(float min, float max) {
+  return min + (max - min) * (float)random_float();
 }
 
 #elif defined(LCG)
 
-float random_double() {
+float random_float() {
   return fast_rand() / MAX_RAND;
 }
 
-float random_double_range(float min, float max) {
+float random_float_range(float min, float max) {
   return min + (max - min) * fast_rand() / (MAX_RAND);
 }
 
 #else
 
-float random_double() {
+float random_float() {
   return rand() / (RAND_MAX + 1.0);
 }
 
-float random_double_range(float min, float max) {
+float random_float_range(float min, float max) {
   return min + (max - min) * rand() / (RAND_MAX + 1.0);
 }
 

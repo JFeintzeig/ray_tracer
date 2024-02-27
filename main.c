@@ -14,21 +14,22 @@
 
 int main() {
   srand(time(NULL));   // Initialization, should only be called once.
-  fast_srand(time(NULL));
+  //fast_srand(time(NULL));
+  fast_srand(123456);
 
   // Camera params
-  double aspect_ratio = 16.0 / 9.0;
+  float aspect_ratio = 16.0 / 9.0;
   int image_width = 1200;
   int samples_per_pixel = 500;
   int max_depth = 50;
 
-  double vfov = 20;
+  float vfov = 20;
   point3_t lookfrom = new_vec3(13, 2, 3);
   point3_t lookat = new_vec3(0, 0, 0);
   vec3_t vup = new_vec3(0, 1, 0);
 
-  double defocus_angle = 0.6;
-  double focus_dist = 10.0;
+  float defocus_angle = 0.6;
+  float focus_dist = 10.0;
 
   camera_t camera = initialize_camera(aspect_ratio, image_width, samples_per_pixel, max_depth,
                                       vfov, lookfrom, lookat, vup, defocus_angle, focus_dist);
@@ -44,8 +45,8 @@ int main() {
 
   for (int a = -11; a < 11; a++) {
     for (int b = -11; b < 11; b++) {
-      double choose_mat = random_double();
-      point3_t center = new_vec3(a + 0.9*random_double(), 0.2, b + 0.9*random_double());
+      float choose_mat = random_float();
+      point3_t center = new_vec3(a + 0.9*random_float(), 0.2, b + 0.9*random_float());
 
       point3_t diff = subtract(center, new_vec3(4, 0.2, 0));
       if (length(&diff) > 0.9) {
@@ -61,7 +62,7 @@ int main() {
           // metal
           n_metal++;
           color_t albedo_metal = random_vec3(0.5, 1.0);
-          double fuzz = random_double_range(0, 0.5);
+          float fuzz = random_float_range(0, 0.5);
           metal_t *sphere_material_metal = new_metal(albedo_metal, fuzz);
           add_sphere(sphere_list, center, 0.2, (material_t *)sphere_material_metal);
         } else {

@@ -13,7 +13,7 @@ typedef struct material_t material_t;
 typedef struct {
   point3_t p;
   vec3_t normal;
-  double t;
+  float t;
   bool front_face;
   material_t *mat;
 } hit_record_t;
@@ -27,26 +27,26 @@ void set_face_normal(hit_record_t *rec, const ray_t *r, vec3_t outward_normal) {
 
 typedef struct sphere_t {
   point3_t center;
-  double radius;
+  float radius;
   material_t *material;
 } sphere_t;
 
 bool hit_sphere(const sphere_t *sphere, const ray_t *r, const interval_t *interval, hit_record_t *rec) {
   point3_t center = sphere->center;
-  double radius = sphere->radius;
+  float radius = sphere->radius;
 
   vec3_t a_c = subtract(r->origin, center);
-  //double a = length_squared(&r->direction);
-  double a = 1.0;
-  double half_b = dot(r->direction, a_c);
-  double c = length_squared(&a_c) - radius*radius;
+  //float a = length_squared(&r->direction);
+  float a = 1.0;
+  float half_b = dot(r->direction, a_c);
+  float c = length_squared(&a_c) - radius*radius;
 
-  double discriminant = half_b*half_b - a*c;
+  float discriminant = half_b*half_b - a*c;
   if (discriminant < 0) {
     return false;
   } else {
     // confusing: find the closest root in interval
-    double t = (-1*half_b - sqrt(discriminant)) / a;
+    float t = (-1*half_b - sqrt(discriminant)) / a;
     if (!interval_surrounds(interval, t)) {
       t = (-1*half_b + sqrt(discriminant)) / a;
       if (!interval_surrounds(interval, t)) {
@@ -63,7 +63,7 @@ bool hit_sphere(const sphere_t *sphere, const ray_t *r, const interval_t *interv
   }
 }
 
-sphere_t new_sphere(point3_t center, double radius, material_t *material) {
+sphere_t new_sphere(point3_t center, float radius, material_t *material) {
   sphere_t sphere = {
     .center = center,
     .radius = radius,
@@ -81,7 +81,7 @@ typedef struct {
 
 bool hit_sphere_list(sphere_list_t *sphere_list, const ray_t *r, const interval_t *interval, hit_record_t *rec) {
   hit_record_t temp_rec;
-  double closest_so_far = interval->max;
+  float closest_so_far = interval->max;
   bool is_hit = false;
 
   for (sphere_t *sphere = sphere_list->spheres;
@@ -110,7 +110,7 @@ sphere_list_t *new_sphere_list(size_t n_spheres) {
   return sphere_list;
 }
 
-void add_sphere(sphere_list_t *sphere_list, vec3_t center, double radius, material_t *material) {
+void add_sphere(sphere_list_t *sphere_list, vec3_t center, float radius, material_t *material) {
   // TODO: check how nth_sphere compares to max_spheres!
   sphere_list->spheres[sphere_list->nth_sphere] = new_sphere(center, radius, material);
   sphere_list->nth_sphere++;

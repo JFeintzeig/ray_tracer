@@ -2,19 +2,19 @@
 #define INTERVAL_H
 
 typedef struct {
-  double min;
-  double max;
+  float min;
+  float max;
 } interval_t;
 
-bool interval_contains(const interval_t *interval, double t) {
+bool interval_contains(const interval_t *interval, float t) {
   return t >= interval-> min && t <= interval->max;
 }
 
-bool interval_surrounds(const interval_t *interval, double t) {
+bool interval_surrounds(const interval_t *interval, float t) {
   return t > interval-> min && t < interval->max;
 }
 
-double clamp(double value, interval_t interval) {
+float clamp(float value, interval_t interval) {
   if (value < interval.min) {
     return interval.min;
   } else if (value > interval.max) {

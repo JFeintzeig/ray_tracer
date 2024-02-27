@@ -50,7 +50,7 @@ lambertian_t *new_lambertian(color_t albedo) {
 typedef struct metal_t {
   material_t material;
   color_t albedo;
-  double fuzz;
+  float fuzz;
 } metal_t;
 
 bool metal_scatter(const material_t *material, const ray_t *ray_in, const hit_record_t *rec, color_t *attenuation, ray_t *scattered) {
@@ -67,7 +67,7 @@ bool metal_scatter(const material_t *material, const ray_t *ray_in, const hit_re
   return (dot(scatter_direction, rec->normal) > 0);
 }
 
-metal_t *new_metal(color_t albedo, double fuzz) {
+metal_t *new_metal(color_t albedo, float fuzz) {
   metal_t *metal = malloc(sizeof(metal_t));
 
   material_t mat = {
@@ -80,12 +80,12 @@ metal_t *new_metal(color_t albedo, double fuzz) {
 
 typedef struct dielectric_t {
   material_t material;
-  double ir;
+  float ir;
 } dielectric_t;
 
 // Schlick's approximation
-double dielectric_reflectance(double cos, double ref_idx) {
-  double r0 = (1 - ref_idx) / (1 + ref_idx);
+float dielectric_reflectance(float cos, float ref_idx) {
+  float r0 = (1 - ref_idx) / (1 + ref_idx);
   r0 = r0*r0;
   return r0 + (1-r0)*pow((1-cos), 5);
 }
@@ -96,14 +96,14 @@ bool dielectric_scatter(const material_t *material, const ray_t *ray_in, const h
   attenuation->e[1] = 1.0;
   attenuation->e[2] = 1.0;
 
-  double refraction_ratio = rec->front_face? 1.0/dielectric->ir : dielectric->ir;
+  float refraction_ratio = rec->front_face? 1.0/dielectric->ir : dielectric->ir;
 
   vec3_t unit_direction = normalize(ray_in->direction);
 
-  double cos_theta = fmin(dot(scale(unit_direction, -1.0), rec->normal), 1.0);
-  double sin_theta = sqrt(1-cos_theta * cos_theta);
+  float cos_theta = fmin(dot(scale(unit_direction, -1.0), rec->normal), 1.0);
+  float sin_theta = sqrt(1-cos_theta * cos_theta);
   bool tir = refraction_ratio*sin_theta > 1;
-  if (tir || dielectric_reflectance(cos_theta, refraction_ratio) > random_double()) {
+  if (tir || dielectric_reflectance(cos_theta, refraction_ratio) > random_float()) {
     scattered->direction = normalize(reflect(unit_direction, rec->normal));
   } else {
     // refract
@@ -115,7 +115,7 @@ bool dielectric_scatter(const material_t *material, const ray_t *ray_in, const h
   return true;
 }
 
-dielectric_t *new_dielectric(double ir) {
+dielectric_t *new_dielectric(float ir) {
   dielectric_t *dielectric = malloc(sizeof(dielectric_t));
   material_t mat = {
     .scatter_fn = &dielectric_scatter

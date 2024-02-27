@@ -13,7 +13,7 @@ ray_t new_ray(point3_t origin, vec3_t direction) {
   return ray;
 }
 
-point3_t propagate(ray_t ray, double t) {
+point3_t propagate(ray_t ray, float t) {
   return add(ray.origin, scale(ray.direction, t));
 }
 

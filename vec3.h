@@ -7,10 +7,10 @@
 #include <stdio.h>
 
 typedef struct {
-  double e[3];
+  float e[3];
 } vec3_t;
 
-vec3_t new_vec3(double x, double y, double z) {
+vec3_t new_vec3(float x, float y, float z) {
   vec3_t vec;
   vec.e[0] = x;
   vec.e[1] = y;
@@ -27,7 +27,7 @@ bool equals(vec3_t a, vec3_t b) {
 }
 
 bool near_zero(vec3_t a) {
-  double s = 1e-8;
+  float s = 1e-8;
   return (fabs(a.e[0]) < s) && (fabs(a.e[1]) < s) && (fabs(a.e[2]) < s);
 }
 
@@ -43,17 +43,17 @@ void subtract_equals(vec3_t *a, vec3_t b) {
   a->e[2] -= b.e[2];
 }
 
-void multiply_equals(vec3_t *a, double t) {
+void multiply_equals(vec3_t *a, float t) {
   a->e[0] *= t;
   a->e[1] *= t;
   a->e[2] *= t;
 }
 
-double length_squared(const vec3_t *a) {
+float length_squared(const vec3_t *a) {
   return a->e[0]*a->e[0] + a->e[1]*a->e[1] + a->e[2]*a->e[2];
 }
 
-double length(const vec3_t *a) {
+float length(const vec3_t *a) {
   return sqrt(length_squared(a));
 }
 
@@ -84,11 +84,11 @@ vec3_t divide(vec3_t a, vec3_t b) {
   return new_vec3(a.e[0]/b.e[0], a.e[1]/b.e[1], a.e[2]/b.e[2]);
 }
 
-vec3_t scale(vec3_t a, double t) {
+vec3_t scale(vec3_t a, float t) {
   return new_vec3(a.e[0]*t, a.e[1]*t, a.e[2]*t);
 }
 
-double dot(vec3_t a, vec3_t b) {
+float dot(vec3_t a, vec3_t b) {
   return a.e[0] * b.e[0] + a.e[1] * b.e[1] + a.e[2] * b.e[2];
 }
 
@@ -102,8 +102,8 @@ vec3_t normalize(vec3_t a) {
   return scale(a, 1/length(&a));
 }
 
-vec3_t random_vec3(double min, double max) {
-  return new_vec3(random_double_range(min, max), random_double_range(min, max), random_double_range(min, max));
+vec3_t random_vec3(float min, float max) {
+  return new_vec3(random_float_range(min, max), random_float_range(min, max), random_float_range(min, max));
 }
 
 vec3_t random_vec3_on_unit_sphere() {
@@ -138,8 +138,8 @@ vec3_t reflect(vec3_t v, vec3_t n) {
   return subtract(v, scale(n, 2*dot(v, n)));
 }
 
-vec3_t refract(vec3_t uv, vec3_t n, double eta_over_eta_prime) {
-  double cos_theta = fmin(dot(scale(uv, -1.0), n), 1.0);
+vec3_t refract(vec3_t uv, vec3_t n, float eta_over_eta_prime) {
+  float cos_theta = fmin(dot(scale(uv, -1.0), n), 1.0);
   vec3_t r_prime_perp = scale(n, cos_theta);
   add_equals(&r_prime_perp, uv);
   r_prime_perp = scale(r_prime_perp, eta_over_eta_prime);

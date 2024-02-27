@@ -15,7 +15,7 @@
 #define NUM_THREADS 10
 
 typedef struct {
-  double aspect_ratio;
+  float aspect_ratio;
   int image_width;
   int image_height;
   point3_t center;
@@ -25,23 +25,23 @@ typedef struct {
   int samples_per_pixel;
   int max_depth;
 
-  double defocus_angle;
+  float defocus_angle;
   vec3_t defocus_disk_u;
   vec3_t defocus_disk_v;
 
 } camera_t;
 
-camera_t initialize_camera(double aspect_ratio, int image_width, int samples_per_pixel, int max_depth, double vfov, point3_t lookfrom, point3_t lookat, point3_t vup, double defocus_angle, double focus_dist) {
+camera_t initialize_camera(float aspect_ratio, int image_width, int samples_per_pixel, int max_depth, float vfov, point3_t lookfrom, point3_t lookat, point3_t vup, float defocus_angle, float focus_dist) {
   int image_height = (int)(image_width / aspect_ratio);
   image_height = (image_height < 1) ? 1 : image_height;
 
   point3_t center = lookfrom;
 
   vec3_t view_direction = subtract(lookfrom, lookat);
-  double theta = degrees_to_radians(vfov);
-  double h = tan(theta/2);
-  double viewport_height = 2 * h * focus_dist;
-  double viewport_width = viewport_height * (double)image_width / (double)image_height;
+  float theta = degrees_to_radians(vfov);
+  float h = tan(theta/2);
+  float viewport_height = 2 * h * focus_dist;
+  float viewport_width = viewport_height * (float)image_width / (float)image_height;
 
   vec3_t w = normalize(view_direction);
   vec3_t u = normalize(cross(vup, w));
@@ -50,8 +50,8 @@ camera_t initialize_camera(double aspect_ratio, int image_width, int samples_per
   vec3_t viewport_u = scale(u, viewport_width);
   vec3_t viewport_v = scale(v, -1.0*viewport_height);
 
-  vec3_t pixel_delta_u = scale(viewport_u, 1.0/(double)(image_width));
-  vec3_t pixel_delta_v = scale(viewport_v, 1.0/(double)(image_height));
+  vec3_t pixel_delta_u = scale(viewport_u, 1.0/(float)(image_width));
+  vec3_t pixel_delta_v = scale(viewport_v, 1.0/(float)(image_height));
   vec3_t pixel_delta_uv = add(pixel_delta_u, pixel_delta_v);
 
   point3_t viewport_upper_left = subtract(center, scale(w, focus_dist));
@@ -59,7 +59,7 @@ camera_t initialize_camera(double aspect_ratio, int image_width, int samples_per
   subtract_equals(&viewport_upper_left, scale(viewport_v, 0.5));
   point3_t pixel00_loc = add(viewport_upper_left, scale(pixel_delta_uv, 0.5));
 
-  double defocus_radius = focus_dist * tan(degrees_to_radians(defocus_angle/2));
+  float defocus_radius = focus_dist * tan(degrees_to_radians(defocus_angle/2));
   vec3_t defocus_disk_u = scale(u, defocus_radius);
   vec3_t defocus_disk_v = scale(v, defocus_radius);
 
@@ -99,7 +99,7 @@ color_t ray_color(const ray_t *r, int depth, sphere_list_t *sphere_list, color_t
       return new_vec3(0.0, 0.0, 0.0);
     }
   } else {
-    double a = 0.5 * (1.0 + normalize(r->direction).e[1]);
+    float a = 0.5 * (1.0 + normalize(r->direction).e[1]);
     color_t white = new_vec3(1.0, 1.0, 1.0);
     color_t blue = new_vec3(0.5, 0.7, 1.0);
     return multiply(attenuation, add(scale(white, 1-a), scale(blue, a)));
@@ -136,10 +136,10 @@ void *render_scanline(void *args) {
       for (int k=0; k < camera->samples_per_pixel; k++) {
         point3_t pixel_sample = add(
           pixel_center,
-          scale(camera->pixel_delta_u, (-0.5 + random_double()))
+          scale(camera->pixel_delta_u, (-0.5 + random_float()))
         );
         add_equals(&pixel_sample,
-                   scale(camera->pixel_delta_v, (-0.5 + random_double())));
+                   scale(camera->pixel_delta_v, (-0.5 + random_float())));
 
         point3_t ray_origin = (camera->defocus_angle <= 0) ? camera->center: defocus_disk_sample(camera);
         vec3_t ray_direction = normalize(subtract(pixel_sample, ray_origin));
@@ -218,10 +218,10 @@ void render(camera_t *camera, sphere_list_t *sphere_list) {
       for (int k=0; k < camera->samples_per_pixel; k++) {
         point3_t pixel_sample = add(
           pixel_center,
-          scale(camera->pixel_delta_u, (-0.5 + random_double()))
+          scale(camera->pixel_delta_u, (-0.5 + random_float()))
         );
         add_equals(&pixel_sample,
-                   scale(camera->pixel_delta_v, (-0.5 + random_double())));
+                   scale(camera->pixel_delta_v, (-0.5 + random_float())));
 
         point3_t ray_origin = (camera->defocus_angle <= 0) ? camera->center: defocus_disk_sample(camera);
         vec3_t ray_direction = normalize(subtract(pixel_sample, ray_origin));

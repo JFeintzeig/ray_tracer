@@ -1,11 +1,11 @@
 targets := $(wildcard *.c) $(wildcard *.h)
-CFLAGS := -Wall -O2 -flto
+CFLAGS := -Wall -O3 -flto -ffast-math -mfloat-abi=hard
 LDLIBS := -lm -lpthread
 
 #main: mt19937.o
 
 ray-tracer: $(targets)
-	gcc -Wall -O2 -fsanitize=address -o ray-tracer main.c
+	gcc -Wall -g -o ray-tracer main.c
 
 test: $(targets)
 	gcc -Wall -o test test.c

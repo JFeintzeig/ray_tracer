@@ -10,6 +10,8 @@
 #include "ray.h"
 #include "interval.h"
 
+//#define VECTORIZE_HIT_SPHERE
+
 typedef struct material_t material_t;
 
 typedef struct {
@@ -37,6 +39,8 @@ bool hit_sphere(const sphere_t *sphere, const ray_t *r, const interval_t *interv
   point3_t center = sphere->center;
   float radius = sphere->radius;
 
+  #ifdef VECTORIZE_HIT_SPHERE
+
   float32x4_t origin = vld1q_f32(&r->origin.e[0]);
   float32x4_t direction = vld1q_f32(&r->direction.e[0]);
   float32x4_t center_vec = vld1q_f32(&center.e[0]);
@@ -47,9 +51,13 @@ bool hit_sphere(const sphere_t *sphere, const ray_t *r, const interval_t *interv
   float32x4_t length_squared_vec = vmulq_f32(a_c, a_c);
   float c = vaddvq_f32(length_squared_vec) - radius*radius;
 
-  //vec3_t a_c = subtract(r->origin, center);
-  //float half_b = dot(r->direction, a_c);
-  //float c = length_squared(&a_c) - radius*radius;
+  #else
+
+  vec3_t a_c = subtract(r->origin, center);
+  float half_b = dot(r->direction, a_c);
+  float c = length_squared(&a_c) - radius*radius;
+
+  #endif // VECTORIZE_HIT_SPHERE
 
   // NB: `a` equals 1 because we pre-normalize
   // so we are implicitly multiplying a*c in the line below,
@@ -98,14 +106,15 @@ bool hit_sphere_list(sphere_list_t *sphere_list, const ray_t *r, const interval_
   hit_record_t temp_rec;
   float closest_so_far = interval->max;
   bool is_hit = false;
+  interval_t this_interval = {.min = interval->min, .max = closest_so_far};
 
   for (sphere_t *sphere = sphere_list->spheres;
         sphere != &sphere_list->spheres[sphere_list->nth_sphere];
         sphere++) {
-    interval_t this_interval = {.min = interval->min, .max = closest_so_far};
     if (hit_sphere(sphere, r, &this_interval, &temp_rec)) {
       is_hit = true;
       closest_so_far = temp_rec.t;
+      this_interval.max = closest_so_far;
       rec->p = temp_rec.p;
       rec->normal = temp_rec.normal;
       rec->t = temp_rec.t;

@@ -73,14 +73,16 @@ vec3_t invert(vec3_t a) {
 }
 
 vec3_t add(vec3_t a, vec3_t b) {
-  vec3_t result = {.e = {0.0f, 0.0f, 0.0f, 0.0f}};
-  float32x4_t vec1 = vld1q_f32(&a.e[0]);
-  float32x4_t vec2 = vld1q_f32(&b.e[0]);
-  // Multiply corresponding elements of vec1 and vec2
-  float32x4_t mul_result = vaddq_f32(vec1, vec2);
-  // Store the result back into memory
-  vst1q_f32(&result.e[0], mul_result);
-  return result;
+  //vec3_t result = {.e = {0.0f, 0.0f, 0.0f, 0.0f}};
+  //float32x4_t vec1 = vld1q_f32(&a.e[0]);
+  //float32x4_t vec2 = vld1q_f32(&b.e[0]);
+  //// Multiply corresponding elements of vec1 and vec2
+  //float32x4_t mul_result = vaddq_f32(vec1, vec2);
+  //// Store the result back into memory
+  //vst1q_f32(&result.e[0], mul_result);
+  //return result;
+
+  return new_vec3(a.e[0] + b.e[0], a.e[1] + b.e[1], a.e[2] + b.e[2]);
 }
 
 vec3_t subtract(vec3_t a, vec3_t b) {

@@ -1,5 +1,5 @@
 targets := $(wildcard *.c) $(wildcard *.h)
-CFLAGS := -Wall -O3 -flto -ffast-math -mfloat-abi=hard
+CFLAGS := -Wall -O2 -flto -ffast-math -mfloat-abi=hard
 LDLIBS := -lm -lpthread
 
 #main: mt19937.o

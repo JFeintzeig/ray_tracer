@@ -152,6 +152,8 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, const ray_t *ray, co
   float32x4_t ray_ory = vdupq_n_f32(ray->origin.e[1]);
   float32x4_t ray_orz = vdupq_n_f32(ray->origin.e[2]);
 
+  //float32x4_t vec_zero = vdupq_n_f32(0.0f);
+
   sphere_t *this_sphere = sphere_list->spheres;
   sphere_t *closest_hit_sphere;
   for (int count = sphere_list->nth_sphere - 1; count >= 0; count -= 4) {
@@ -214,34 +216,44 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, const ray_t *ray, co
     float32x4_t disc = vmulq_f32(halfb, halfb);
     disc = vsubq_f32(disc, c);
 
-    // another idea: evaluate condition on vector register, then ??
-
     // maybe different branches for 1 hit or more than one hit?
-    //uint32x4_t ltzero = vcltq_f32(disc, vec_zero);
-    //uint32_t has_hits = vaddvq_u32(ltzero);
-    //if (has_hits == 0) {
-    //  continue;
-    //} else {
-      //disc_hit = vbslq_f32(ltzero, disc, vec_zero);
 
-      for (int i = 0; i < 4; i++) {
-        if (disc[i] < 0) {
+    // this early stop condition runs in 1 min 28 sec (no fast-math)
+    //uint32x4_t ltzero = vcltq_f32(disc, vec_zero);
+    //if (vmaxvq_u32(ltzero) == 0) {
+
+    // this early stop condition runs in 1 min 25 sec (no fast-math)
+    //if (disc[0] < 0 && disc[1] < 0 && disc[2] < 0 && disc[3] < 0) {
+    //  this_sphere += 4;
+    //  continue;
+    //}
+
+    // this early stop condition runs in 1 min 16 sec (no fast-math)
+    // ohhh but with -ffast-math i'm down to 1 min 10 sec
+    // so this is a 10% improvement over no-early-stop (1 min 17 sec)
+    if (vmaxvq_f32(disc) < 0.0f) {
+      this_sphere += 4;
+      continue;
+    }
+
+    for (int i = 0; i < 4; i++) {
+      if (disc[i] < 0) {
+        continue;
+      }
+      float sqrt_disc = sqrt(disc[i]);
+      float t = (-1*halfb[i] - sqrt_disc);
+      if (!interval_surrounds(&this_interval, t)) {
+        t = (-1*halfb[i] + sqrt_disc);
+        if (!interval_surrounds(&this_interval, t)) {
           continue;
         }
-        float sqrt_disc = sqrt(disc[i]);
-        float t = (-1*halfb[i] - sqrt_disc);
-        if (!interval_surrounds(&this_interval, t)) {
-          t = (-1*halfb[i] + sqrt_disc);
-          if (!interval_surrounds(&this_interval, t)) {
-            continue;
-          }
-        }
-
-        is_hit = true;
-        this_interval.max = t;
-        closest_hit_sphere = this_sphere + i;
       }
-    //}
+
+      is_hit = true;
+      this_interval.max = t;
+      closest_hit_sphere = this_sphere + i;
+    }
+
     this_sphere += 4;
   }
   if (is_hit) {

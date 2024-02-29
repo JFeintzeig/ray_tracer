@@ -6,6 +6,7 @@ At first it was quite slow, taking over 3 hours to render the cover image of the
 * Naive vectorization of `hit_sphere()` quadratic formula using NEON (~14% improvement) [0].
 * Refactored code to remove abstract classes / function pointers (~10% improvement).
 * Refactored multithreading to better split load across threads (~10% improvement).
+* More involved vectorization of `hit_sphere_list()` (another ~9% improvement).
 * Replace stdlib `rand()` with a fast but dumb inline PRNG (~6% improvement).
 * Normalize ray direction up-front to simplify `hit_sphere()` calculation (3%).
 * Attempted to make the main function tail-call recursive (~2%).

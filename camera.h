@@ -89,7 +89,7 @@ color_t ray_color(const ray_t *r, int depth, sphere_list_t *sphere_list, color_t
   hit_record_t rec;
   interval_t interval = {.min = 0.001, .max = INFINITY};
 
-  if (hit_sphere_list(sphere_list, r, &interval, &rec)) {
+  if (hit_sphere_list_vectorized(sphere_list, r, &interval, &rec)) {
     ray_t nray;
     color_t new_attenuation;
     if (scatter(rec.mat, r, &rec, &new_attenuation, &nray)) {

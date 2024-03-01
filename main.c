@@ -36,8 +36,10 @@ int main() {
 
   // Materials and spheres
   sphere_list_t *sphere_list = new_sphere_list(500);
+  material_list_t *material_list = new_material_list(500);
   lambertian_t *ground_material = new_lambertian((color_t)new_vec3(0.5, 0.5, 0.5));
-  add_sphere(sphere_list, new_vec3(0, -1000, 0), 1000, (material_t *)ground_material);
+  add_sphere(sphere_list, new_vec3(0, -1000, 0), 1000);
+  add_material(material_list, (material_t *)ground_material);
 
   int n_diffuse = 0, n_metal = 0, n_glass = 0;
 
@@ -57,18 +59,21 @@ int main() {
           color_t c2 = random_vec3(0, 1);
           color_t albedo_diffuse = multiply(c1, c2);
           lambertian_t *sphere_material_diffuse = new_lambertian(albedo_diffuse);
-          add_sphere(sphere_list, center, 0.2, (material_t *)sphere_material_diffuse);
+          add_sphere(sphere_list, center, 0.2);
+          add_material(material_list, (material_t *)sphere_material_diffuse);
         } else if (choose_mat < 0.95) {
           // metal
           n_metal++;
           color_t albedo_metal = random_vec3(0.5, 1.0);
           float fuzz = random_float_range(0, 0.5);
           metal_t *sphere_material_metal = new_metal(albedo_metal, fuzz);
-          add_sphere(sphere_list, center, 0.2, (material_t *)sphere_material_metal);
+          add_sphere(sphere_list, center, 0.2);
+          add_material(material_list, (material_t *)sphere_material_metal);
         } else {
           // glass
           n_glass++;
-          add_sphere(sphere_list, center, 0.2, (material_t *)sphere_material_glass);
+          add_sphere(sphere_list, center, 0.2);
+          add_material(material_list, (material_t *)sphere_material_glass);
         }
       }
     }
@@ -77,14 +82,17 @@ int main() {
   printf("diffuse: %d metal: %d glass: %d\n", n_diffuse, n_metal, n_glass);
 
   dielectric_t *material1 = new_dielectric(1.5);
-  add_sphere(sphere_list, new_vec3(0, 1, 0), 1.0, (material_t *)material1);
+  add_sphere(sphere_list, new_vec3(0, 1, 0), 1.0);
+  add_material(material_list, (material_t *)material1);
 
   lambertian_t *material2 = new_lambertian(new_vec3(0.4, 0.2, 0.1));
-  add_sphere(sphere_list, new_vec3(-4, 1, 0), 1.0, (material_t *)material2);
+  add_sphere(sphere_list, new_vec3(-4, 1, 0), 1.0);
+  add_material(material_list, (material_t *)material2);
 
   metal_t *material3 = new_metal(new_vec3(0.7, 0.6, 0.5), 0.0);
-  add_sphere(sphere_list, new_vec3(4, 1, 0), 1.0, (material_t *)material3);
+  add_sphere(sphere_list, new_vec3(4, 1, 0), 1.0);
+  add_material(material_list, (material_t *)material3);
 
-  render(&camera, sphere_list);
+  render(&camera, sphere_list, material_list);
   return 0;
 }

@@ -126,4 +126,26 @@ dielectric_t *new_dielectric(float ir) {
   return dielectric;
 }
 
+typedef struct {
+  size_t nth_sphere;
+  size_t max_spheres;
+  material_t *materials[];
+} material_list_t;
+
+material_list_t *new_material_list(size_t n_spheres) {
+  // NB: we never free()
+  material_list_t *material_list = malloc(sizeof(material_list_t) + n_spheres * sizeof(material_t*));
+  material_list->max_spheres = n_spheres;
+  material_list->nth_sphere = 0;
+
+  return material_list;
+}
+
+void add_material(material_list_t *material_list, material_t *material) {
+  // TODO: check how nth_sphere compares to max_spheres!
+  material_list->materials[material_list->nth_sphere] = material;
+  material_list->nth_sphere++;
+}
+
+
 #endif // !MATERIAL_H

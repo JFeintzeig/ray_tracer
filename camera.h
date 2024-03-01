@@ -7,6 +7,7 @@
 #include "color.h"
 #include "hittable.h"
 #include "material.h"
+#include "vectorized.h"
 #include "ray.h"
 #include "rtweekend.h"
 #include "vec3.h"
@@ -81,7 +82,7 @@ camera_t initialize_camera(float aspect_ratio, int image_width, int samples_per_
   return camera;
 }
 
-color_t ray_color(const ray_t *r, int depth, sphere_list_t *sphere_list, color_t attenuation) {
+color_t ray_color(const ray_t *r, int depth, sphere_list_t *sphere_list, material_list_t *material_list, color_t attenuation) {
   if (depth == 0) {
     return new_vec3(0.0, 0.0, 0.0);
   }
@@ -89,12 +90,12 @@ color_t ray_color(const ray_t *r, int depth, sphere_list_t *sphere_list, color_t
   hit_record_t rec;
   interval_t interval = {.min = 0.001, .max = INFINITY};
 
-  if (hit_sphere_list_vectorized(sphere_list, r, &interval, &rec)) {
+  if (hit_sphere_list_vectorized(sphere_list, material_list, r, &interval, &rec)) {
     ray_t nray;
     color_t new_attenuation;
     if (scatter(rec.mat, r, &rec, &new_attenuation, &nray)) {
       color_t next_attenuation = multiply(attenuation, new_attenuation);
-      return ray_color(&nray, depth -1, sphere_list, next_attenuation);
+      return ray_color(&nray, depth -1, sphere_list, material_list, next_attenuation);
     } else {
       return new_vec3(0.0, 0.0, 0.0);
     }
@@ -117,6 +118,7 @@ point3_t defocus_disk_sample(const camera_t *camera) {
 typedef struct render_args_t {
   const camera_t *camera;
   sphere_list_t *sphere_list;
+  material_list_t *material_list;
   int scanline_start;
   int num_threads;
   color_t *pixels;
@@ -146,7 +148,7 @@ void *render_scanline(void *args) {
         ray_t ray = new_ray(ray_origin, ray_direction);
 
         color_t attenuation = new_vec3(1.0, 1.0, 1.0);
-        color_t sample_color = ray_color(&ray, camera->max_depth, (rargs->sphere_list), attenuation);
+        color_t sample_color = ray_color(&ray, camera->max_depth, rargs->sphere_list, rargs->material_list, attenuation);
         add_equals(&color_sum, sample_color);
       }
 
@@ -159,7 +161,7 @@ void *render_scanline(void *args) {
   return NULL;
 }
 
-void render(camera_t *camera, sphere_list_t *sphere_list) {
+void render(camera_t *camera, sphere_list_t *sphere_list, material_list_t *material_list) {
   FILE *fp;
   fp = fopen("output.ppm", "w");
 
@@ -175,6 +177,7 @@ void render(camera_t *camera, sphere_list_t *sphere_list) {
   render_args_t render_args_base = {
     .camera = camera,
     .sphere_list = sphere_list,
+    .material_list = material_list,
     .scanline_start = 0, // to be filled in on each thread creation
     .num_threads = NUM_THREADS,
     .pixels = pixels
@@ -228,7 +231,7 @@ void render(camera_t *camera, sphere_list_t *sphere_list) {
         ray_t ray = new_ray(ray_origin, ray_direction);
 
         color_t attenuation = new_vec3(1.0, 1.0, 1.0);
-        color_t sample_color = ray_color(&ray, camera->max_depth, sphere_list, attenuation);
+        color_t sample_color = ray_color(&ray, camera->max_depth, sphere_list, material_list, attenuation);
         add_equals(&color_sum, sample_color);
       }
 

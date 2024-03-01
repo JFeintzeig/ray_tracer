@@ -4,7 +4,7 @@ At first it was quite slow, taking over 3 hours to render the cover image of the
 * Using the compiler optimization flag `-O2` (~15x speed-up).
 * Multithreading (5.6x speed-up).
 * Naive vectorization of `hit_sphere()` quadratic formula using NEON (~14% improvement) [0].
-* More involved vectorization of `hit_sphere_list()` (another 20% improvement).
+* More involved vectorization of `hit_sphere_list()` (another 47% improvement, so vectorization totals 68% speedup) [1].
 * Refactored code to remove abstract classes / function pointers (~10% improvement).
 * Refactored multithreading to better split load across threads (~10% improvement).
 * Replace stdlib `rand()` with a fast but dumb inline PRNG (~6% improvement).
@@ -18,3 +18,10 @@ Here's the cover image from the book, as rendered by my ray-tracer:
 <img width="1196" alt="image" src="https://github.com/JFeintzeig/ray_tracer/assets/4000790/34e24cc8-b564-469d-840c-59a30a7e463d">
 
 [0] If I use `-O3` instead of `-O2`, that also vectorizes this routine. My implementation is slightly more efficient, a ~4% improvement over `-O3`. Also, for some reason the threads get out of sync sometimes with this implemented, but adding the `-ffast-math` compiler flag appears to fix this :shrug:.
+
+[1] More detailed log:
+- vectorized quadratic formula (10%)
+- vectorized early stop condition (9%)
+- interleaved data loading + refactor sphere_t to enable this (23%)
+- tried loop unrolling to do 8 at a time instead of 4 but did not seem to help/hurt
+- tried to vectorize the if/else/math logic when we actually have a hit, but it was significantly slower. probably more speed-up possible here.

@@ -245,55 +245,34 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, const ray_t *ray, co
     // doing the for loop was ~1 min 35 sec, so significantly slower
     // the fancy masking at some point got to ~1 min 5 sec
     // but the image was totally fucked
+
+    // The completely vectorized version from here below
+    // ran in 1 min 55 sec but something else on my laptop
+    // was also running so I couldn't get a good measurement.
+    // It consumed ~750% of CPU, so maybe will be closer to
+    // 1 min 25 sec for real
     float32x4_t sqrte = vsqrtq_f32(disc);
     float32x4_t t_small = vnegq_f32(vaddq_f32(halfb, sqrte));
     float32x4_t t_big = vaddq_f32(vnegq_f32(halfb), sqrte);
-    //printf("{%3.1f %3.1f %3.1f %3.1f}\n", t_small[0], t_small[1], t_small[2], t_small[3]);
 
     uint32x4_t mask_s = vcgtq_f32(t_small, vec_min);
     mask_s = vandq_u32(mask_s, vcltq_f32(t_small, vec_max));
-    // TODO: oops, we want where disc >= 0 not disc < 0
-    // but this might be unnecessary b/c sqrt(negative) gives nan?
-    //mask_s = vandq_u32(mask_s, vcltq_f32(disc, vec_zero));
-    //printf("{%x %x %x %x}\n", mask_s[0], mask_s[1], mask_s[2], mask_s[3]);
+    // NB: implicitly filter disc >= 0 b/c otherwise sqrt is nan
     t_small = vbslq_f32(mask_s, t_small, vec_inf);
 
     uint32x4_t mask_b = vcgtq_f32(t_big, vec_min);
     mask_b = vandq_u32(mask_b, vcltq_f32(t_big, vec_max));
-    //mask_b = vandq_u32(mask_b, vcltq_f32(disc, vec_zero));
     t_big = vbslq_f32(mask_b, t_big, vec_inf);
 
-    t_small = vpminq_f32(t_small, t_big);
-    float t_best = vminvq_f32(t_small);
+    float t_best = fmin(vminvq_f32(t_small), vminvq_f32(t_big));
     if (t_best < INFINITY) {
-      //printf("%3.1f {%3.1f %3.1f %3.1f %3.1f}\n", t_best, t_small[0], t_small[1], t_small[2], t_small[3]);
       is_hit = true;
       vec_max = vdupq_n_f32(t_best);
-      //int ind = vmaxvq_f32(vbslq_f32(vmvnq_u32(vcgtq_f32(t_small, vec_max)), vec_ind, vec_zero));
-      int ind = vmaxvq_f32(vbslq_f32(vceqq_f32(t_small, vec_max), vec_ind, vec_zero));
-      //if (ind != 3) {
-      //  printf("%d\n", ind);
-      //}
+      int ind1 = vmaxvq_f32(vbslq_f32(vceqq_f32(t_small, vec_max), vec_ind, vec_zero));
+      int ind2 = vmaxvq_f32(vbslq_f32(vceqq_f32(t_big, vec_max), vec_ind, vec_zero));
+      int ind = ind1 > ind2 ? ind1 : ind2;
       closest_hit_sphere = this_sphere + ind;
     }
-
-
-    //for (int i = 0; i < 4; i++) {
-    //  if (disc[i] < 0.0f) {
-    //    continue;
-    //  }
-    //  float t = t_small[i];
-    //  if (!interval_surrounds(&this_interval, t)) {
-    //    t = t_big[i];
-    //    if (!interval_surrounds(&this_interval, t)) {
-    //      continue;
-    //    }
-    //  }
-
-    //  is_hit = true;
-    //  this_interval.max = t;
-    //  closest_hit_sphere = this_sphere + i;
-    //}
 
     this_sphere += 4;
     // TODO: what about end of array when there's less than 4 spheres left?

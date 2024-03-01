@@ -23,11 +23,16 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
   float32x4_t ray_ory = vdupq_n_f32(ray->origin.e[1]);
   float32x4_t ray_orz = vdupq_n_f32(ray->origin.e[2]);
 
-  //float32x4_t vec_zero = vdupq_n_f32(0.0f);
+  float32x4_t ray_dirx2 = vdupq_n_f32(ray->direction.e[0]);
+  float32x4_t ray_diry2 = vdupq_n_f32(ray->direction.e[1]);
+  float32x4_t ray_dirz2 = vdupq_n_f32(ray->direction.e[2]);
+  float32x4_t ray_orx2 = vdupq_n_f32(ray->origin.e[0]);
+  float32x4_t ray_ory2 = vdupq_n_f32(ray->origin.e[1]);
+  float32x4_t ray_orz2 = vdupq_n_f32(ray->origin.e[2]);
 
   sphere_t *this_sphere = sphere_list->spheres;
   sphere_t *closest_hit_sphere;
-  for (int count = sphere_list->nth_sphere - 1; count >= 0; count -= 4) {
+  for (int count = sphere_list->nth_sphere - 1; count >= 0; count -= 8) {
     float32x4x4_t vec_spheres = vld4q_f32(&this_sphere->center.e[0]);
 
     // a_c = origin - center
@@ -55,6 +60,32 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
     float32x4_t disc = vmulq_f32(halfb, halfb);
     disc = vsubq_f32(disc, c);
 
+    float32x4x4_t vec_spheres2 = vld4q_f32(&(this_sphere+4)->center.e[0]);
+
+    // a_c = origin - center
+    float32x4_t ac_x2 = vsubq_f32(ray_orx2, vec_spheres2.val[0]);
+    float32x4_t ac_y2 = vsubq_f32(ray_ory2, vec_spheres2.val[1]);
+    float32x4_t ac_z2 = vsubq_f32(ray_orz2, vec_spheres2.val[2]);
+
+    // half_b = direction dot a_c
+    float32x4_t halfb_x2 = vmulq_f32(ray_dirx2, ac_x2);
+    float32x4_t halfb_y2 = vmulq_f32(ray_diry2, ac_y2);
+    float32x4_t halfb_z2 = vmulq_f32(ray_dirz2, ac_z2);
+    float32x4_t halfb2 = vaddq_f32(halfb_x2, halfb_y2);
+    halfb2 = vaddq_f32(halfb2, halfb_z2);
+
+    // c = length_squared(a_c) - radius^2
+    float32x4_t cx2 = vmulq_f32(ac_x2, ac_x2);
+    float32x4_t cy2 = vmulq_f32(ac_y2, ac_y2);
+    float32x4_t cz2 = vmulq_f32(ac_z2, ac_z2);
+    float32x4_t c2 = vaddq_f32(cx2, cy2);
+    c2 = vaddq_f32(c2, cz2);
+    float32x4_t r22 = vmulq_f32(vec_spheres2.val[3], vec_spheres2.val[3]);
+    c2 = vsubq_f32(c2, r22);
+
+    // discriminant = half_b*half_b - c
+    float32x4_t disc2 = vmulq_f32(halfb2, halfb2);
+    disc2 = vsubq_f32(disc2, c2);
     // maybe different branches for 1 hit or more than one hit?
 
     // this early stop condition runs in 1 min 28 sec (no fast-math)
@@ -70,8 +101,8 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
     // this early stop condition runs in 1 min 16 sec (no fast-math)
     // ohhh but with -ffast-math i'm down to 1 min 10 sec
     // so this is a 10% improvement over no-early-stop (1 min 17 sec)
-    if (vmaxvq_f32(disc) < 0.0f) {
-      this_sphere += 4;
+    if (vmaxvq_f32(disc) < 0.0f && vmaxvq_f32(disc2) < 0.0f) {
+      this_sphere += 8;
       continue;
     }
 
@@ -93,7 +124,25 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
       closest_hit_sphere = this_sphere + i;
     }
 
-    this_sphere += 4;
+    for (int i = 0; i < 4; i++) {
+      if (disc2[i] < 0) {
+        continue;
+      }
+      float sqrt_disc = sqrt(disc2[i]);
+      float t = (-1*halfb2[i] - sqrt_disc);
+      if (!interval_surrounds(&this_interval, t)) {
+        t = (-1*halfb2[i] + sqrt_disc);
+        if (!interval_surrounds(&this_interval, t)) {
+          continue;
+        }
+      }
+
+      is_hit = true;
+      this_interval.max = t;
+      closest_hit_sphere = this_sphere + 4 + i;
+    }
+
+    this_sphere += 8;
   }
   if (is_hit) {
     rec->t = this_interval.max;

@@ -10,8 +10,11 @@
 // vector is only 3 dimensions but i think this
 // makes sure the vectorized operations work okay
 // because 4 float's fit in one 128bit SIMD register
+// NB: i changed this back to 3 to make
+// hit_sphere_list_vectorized() work
+// but it's required for hit_sphere() w/vectorized on
 typedef struct {
-  float e[4];
+  float e[3];
 } vec3_t;
 
 vec3_t new_vec3(float x, float y, float z) {

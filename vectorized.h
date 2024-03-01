@@ -28,44 +28,12 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
   sphere_t *this_sphere = sphere_list->spheres;
   sphere_t *closest_hit_sphere;
   for (int count = sphere_list->nth_sphere - 1; count >= 0; count -= 4) {
-    // TODO: make data loading better
-    float xs[4] = {
-      this_sphere->center.e[0],
-      (this_sphere + 1)->center.e[0],
-      (this_sphere + 2)->center.e[0],
-      (this_sphere + 3)->center.e[0],
-    };
-
-    float ys[4] = {
-      this_sphere->center.e[1],
-      (this_sphere + 1)->center.e[1],
-      (this_sphere + 2)->center.e[1],
-      (this_sphere + 3)->center.e[1],
-    };
-
-    float zs[4] = {
-      this_sphere->center.e[2],
-      (this_sphere + 1)->center.e[2],
-      (this_sphere + 2)->center.e[2],
-      (this_sphere + 3)->center.e[2],
-    };
-
-    float r[4] = {
-      this_sphere->radius,
-      (this_sphere+1)->radius,
-      (this_sphere+2)->radius,
-      (this_sphere+3)->radius,
-    };
-
-    float32x4_t centerx = vld1q_f32(&xs[0]);
-    float32x4_t centery = vld1q_f32(&ys[0]);
-    float32x4_t centerz = vld1q_f32(&zs[0]);
-    float32x4_t radius = vld1q_f32(&r[0]);
+    float32x4x4_t vec_spheres = vld4q_f32(&this_sphere->center.e[0]);
 
     // a_c = origin - center
-    float32x4_t ac_x = vsubq_f32(ray_orx, centerx);
-    float32x4_t ac_y = vsubq_f32(ray_ory, centery);
-    float32x4_t ac_z = vsubq_f32(ray_orz, centerz);
+    float32x4_t ac_x = vsubq_f32(ray_orx, vec_spheres.val[0]);
+    float32x4_t ac_y = vsubq_f32(ray_ory, vec_spheres.val[1]);
+    float32x4_t ac_z = vsubq_f32(ray_orz, vec_spheres.val[2]);
 
     // half_b = direction dot a_c
     float32x4_t halfb_x = vmulq_f32(ray_dirx, ac_x);
@@ -80,7 +48,7 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
     float32x4_t cz = vmulq_f32(ac_z, ac_z);
     float32x4_t c = vaddq_f32(cx, cy);
     c = vaddq_f32(c, cz);
-    float32x4_t r2 = vmulq_f32(radius, radius);
+    float32x4_t r2 = vmulq_f32(vec_spheres.val[3], vec_spheres.val[3]);
     c = vsubq_f32(c, r2);
 
     // discriminant = half_b*half_b - c

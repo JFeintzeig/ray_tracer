@@ -6,6 +6,10 @@
 #include "rtweekend.h"
 #include "vec3.h"
 
+// TODO: remove function pointers // abstract class,
+// this will allow compiler to optimize more
+// AND memory locality of materials will maybe be faster
+
 typedef bool (scatter_fn_t)(const material_t *material, const ray_t *ray_in, const hit_record_t *rec, color_t *attenuation, ray_t *scattered);
 
 typedef struct material_t {

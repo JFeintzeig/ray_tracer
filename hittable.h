@@ -152,7 +152,12 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, const ray_t *ray, co
   float32x4_t ray_ory = vdupq_n_f32(ray->origin.e[1]);
   float32x4_t ray_orz = vdupq_n_f32(ray->origin.e[2]);
 
-  //float32x4_t vec_zero = vdupq_n_f32(0.0f);
+  float32x4_t vec_zero = vdupq_n_f32(0.0f);
+  float32x4_t vec_min = vdupq_n_f32(interval->min);
+  float32x4_t vec_max = vdupq_n_f32(interval->max);
+  float32x4_t vec_inf = vdupq_n_f32(INFINITY);
+  float inds[4] = {0.0f, 1.0f, 2.0f, 3.0f};
+  float32x4_t vec_ind = vld1q_f32(&inds[0]);
 
   sphere_t *this_sphere = sphere_list->spheres;
   sphere_t *closest_hit_sphere;
@@ -236,28 +241,65 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, const ray_t *ray, co
       continue;
     }
 
-    for (int i = 0; i < 4; i++) {
-      if (disc[i] < 0) {
-        continue;
-      }
-      float sqrt_disc = sqrt(disc[i]);
-      float t = (-1*halfb[i] - sqrt_disc);
-      if (!interval_surrounds(&this_interval, t)) {
-        t = (-1*halfb[i] + sqrt_disc);
-        if (!interval_surrounds(&this_interval, t)) {
-          continue;
-        }
-      }
+    // IIRC, pre-calculating t_small and t_big and then
+    // doing the for loop was ~1 min 35 sec, so significantly slower
+    // the fancy masking at some point got to ~1 min 5 sec
+    // but the image was totally fucked
+    float32x4_t sqrte = vsqrtq_f32(disc);
+    float32x4_t t_small = vnegq_f32(vaddq_f32(halfb, sqrte));
+    float32x4_t t_big = vaddq_f32(vnegq_f32(halfb), sqrte);
+    //printf("{%3.1f %3.1f %3.1f %3.1f}\n", t_small[0], t_small[1], t_small[2], t_small[3]);
 
+    uint32x4_t mask_s = vcgtq_f32(t_small, vec_min);
+    mask_s = vandq_u32(mask_s, vcltq_f32(t_small, vec_max));
+    // TODO: oops, we want where disc >= 0 not disc < 0
+    // but this might be unnecessary b/c sqrt(negative) gives nan?
+    //mask_s = vandq_u32(mask_s, vcltq_f32(disc, vec_zero));
+    //printf("{%x %x %x %x}\n", mask_s[0], mask_s[1], mask_s[2], mask_s[3]);
+    t_small = vbslq_f32(mask_s, t_small, vec_inf);
+
+    uint32x4_t mask_b = vcgtq_f32(t_big, vec_min);
+    mask_b = vandq_u32(mask_b, vcltq_f32(t_big, vec_max));
+    //mask_b = vandq_u32(mask_b, vcltq_f32(disc, vec_zero));
+    t_big = vbslq_f32(mask_b, t_big, vec_inf);
+
+    t_small = vpminq_f32(t_small, t_big);
+    float t_best = vminvq_f32(t_small);
+    if (t_best < INFINITY) {
+      //printf("%3.1f {%3.1f %3.1f %3.1f %3.1f}\n", t_best, t_small[0], t_small[1], t_small[2], t_small[3]);
       is_hit = true;
-      this_interval.max = t;
-      closest_hit_sphere = this_sphere + i;
+      vec_max = vdupq_n_f32(t_best);
+      //int ind = vmaxvq_f32(vbslq_f32(vmvnq_u32(vcgtq_f32(t_small, vec_max)), vec_ind, vec_zero));
+      int ind = vmaxvq_f32(vbslq_f32(vceqq_f32(t_small, vec_max), vec_ind, vec_zero));
+      //if (ind != 3) {
+      //  printf("%d\n", ind);
+      //}
+      closest_hit_sphere = this_sphere + ind;
     }
 
+
+    //for (int i = 0; i < 4; i++) {
+    //  if (disc[i] < 0.0f) {
+    //    continue;
+    //  }
+    //  float t = t_small[i];
+    //  if (!interval_surrounds(&this_interval, t)) {
+    //    t = t_big[i];
+    //    if (!interval_surrounds(&this_interval, t)) {
+    //      continue;
+    //    }
+    //  }
+
+    //  is_hit = true;
+    //  this_interval.max = t;
+    //  closest_hit_sphere = this_sphere + i;
+    //}
+
     this_sphere += 4;
+    // TODO: what about end of array when there's less than 4 spheres left?
   }
   if (is_hit) {
-    rec->t = this_interval.max;
+    rec->t = vec_max[0];
     rec->p = propagate(*ray, rec->t);
     vec3_t outward_normal = scale(subtract(rec->p, closest_hit_sphere->center), 1.0/closest_hit_sphere->radius);
     set_face_normal(rec, ray, outward_normal);

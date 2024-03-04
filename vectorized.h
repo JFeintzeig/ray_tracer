@@ -152,7 +152,7 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
     rec->p = propagate(*ray, rec->t);
     vec3_t outward_normal = scale(subtract(rec->p, closest_hit_sphere->center), 1.0/closest_hit_sphere->radius);
     set_face_normal(rec, ray, outward_normal);
-    rec->mat = material_list->materials[(closest_hit_sphere - &sphere_list->spheres[0])];
+    rec->mat = &material_list->materials[(closest_hit_sphere - &sphere_list->spheres[0])];
   }
   return is_hit;
 }

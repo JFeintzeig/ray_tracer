@@ -34,11 +34,17 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
   sphere_t *closest_hit_sphere;
   for (int count = sphere_list->nth_sphere - 1; count >= 0; count -= 8) {
     float32x4x4_t vec_spheres = vld4q_f32(&this_sphere->center.e[0]);
+    float32x4x4_t vec_spheres2 = vld4q_f32(&(this_sphere+4)->center.e[0]);
 
     // a_c = origin - center
     float32x4_t ac_x = vsubq_f32(ray_orx, vec_spheres.val[0]);
     float32x4_t ac_y = vsubq_f32(ray_ory, vec_spheres.val[1]);
     float32x4_t ac_z = vsubq_f32(ray_orz, vec_spheres.val[2]);
+
+    // a_c = origin - center
+    float32x4_t ac_x2 = vsubq_f32(ray_orx2, vec_spheres2.val[0]);
+    float32x4_t ac_y2 = vsubq_f32(ray_ory2, vec_spheres2.val[1]);
+    float32x4_t ac_z2 = vsubq_f32(ray_orz2, vec_spheres2.val[2]);
 
     // half_b = direction dot a_c
     float32x4_t halfb_x = vmulq_f32(ray_dirx, ac_x);
@@ -46,6 +52,13 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
     float32x4_t halfb_z = vmulq_f32(ray_dirz, ac_z);
     float32x4_t halfb = vaddq_f32(halfb_x, halfb_y);
     halfb = vaddq_f32(halfb, halfb_z);
+
+    // half_b = direction dot a_c
+    float32x4_t halfb_x2 = vmulq_f32(ray_dirx2, ac_x2);
+    float32x4_t halfb_y2 = vmulq_f32(ray_diry2, ac_y2);
+    float32x4_t halfb_z2 = vmulq_f32(ray_dirz2, ac_z2);
+    float32x4_t halfb2 = vaddq_f32(halfb_x2, halfb_y2);
+    halfb2 = vaddq_f32(halfb2, halfb_z2);
 
     // c = length_squared(a_c) - radius^2
     float32x4_t cx = vmulq_f32(ac_x, ac_x);
@@ -56,24 +69,6 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
     float32x4_t r2 = vmulq_f32(vec_spheres.val[3], vec_spheres.val[3]);
     c = vsubq_f32(c, r2);
 
-    // discriminant = half_b*half_b - c
-    float32x4_t disc = vmulq_f32(halfb, halfb);
-    disc = vsubq_f32(disc, c);
-
-    float32x4x4_t vec_spheres2 = vld4q_f32(&(this_sphere+4)->center.e[0]);
-
-    // a_c = origin - center
-    float32x4_t ac_x2 = vsubq_f32(ray_orx2, vec_spheres2.val[0]);
-    float32x4_t ac_y2 = vsubq_f32(ray_ory2, vec_spheres2.val[1]);
-    float32x4_t ac_z2 = vsubq_f32(ray_orz2, vec_spheres2.val[2]);
-
-    // half_b = direction dot a_c
-    float32x4_t halfb_x2 = vmulq_f32(ray_dirx2, ac_x2);
-    float32x4_t halfb_y2 = vmulq_f32(ray_diry2, ac_y2);
-    float32x4_t halfb_z2 = vmulq_f32(ray_dirz2, ac_z2);
-    float32x4_t halfb2 = vaddq_f32(halfb_x2, halfb_y2);
-    halfb2 = vaddq_f32(halfb2, halfb_z2);
-
     // c = length_squared(a_c) - radius^2
     float32x4_t cx2 = vmulq_f32(ac_x2, ac_x2);
     float32x4_t cy2 = vmulq_f32(ac_y2, ac_y2);
@@ -82,6 +77,10 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
     c2 = vaddq_f32(c2, cz2);
     float32x4_t r22 = vmulq_f32(vec_spheres2.val[3], vec_spheres2.val[3]);
     c2 = vsubq_f32(c2, r22);
+
+    // discriminant = half_b*half_b - c
+    float32x4_t disc = vmulq_f32(halfb, halfb);
+    disc = vsubq_f32(disc, c);
 
     // discriminant = half_b*half_b - c
     float32x4_t disc2 = vmulq_f32(halfb2, halfb2);
@@ -106,40 +105,44 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
       continue;
     }
 
-    for (int i = 0; i < 4; i++) {
-      if (disc[i] < 0) {
-        continue;
-      }
-      float sqrt_disc = sqrt(disc[i]);
-      float t = (-1*halfb[i] - sqrt_disc);
-      if (!interval_surrounds(&this_interval, t)) {
-        t = (-1*halfb[i] + sqrt_disc);
-        if (!interval_surrounds(&this_interval, t)) {
+    if (vmaxvq_f32(disc) >= 0.0f) {
+      for (int i = 0; i < 4; i++) {
+        if (disc[i] < 0) {
           continue;
         }
-      }
+        float sqrt_disc = sqrt(disc[i]);
+        float t = (-1*halfb[i] - sqrt_disc);
+        if (!interval_surrounds(&this_interval, t)) {
+          t = (-1*halfb[i] + sqrt_disc);
+          if (!interval_surrounds(&this_interval, t)) {
+            continue;
+          }
+        }
 
-      is_hit = true;
-      this_interval.max = t;
-      closest_hit_sphere = this_sphere + i;
+        is_hit = true;
+        this_interval.max = t;
+        closest_hit_sphere = this_sphere + i;
+      }
     }
 
-    for (int i = 0; i < 4; i++) {
-      if (disc2[i] < 0) {
-        continue;
-      }
-      float sqrt_disc = sqrt(disc2[i]);
-      float t = (-1*halfb2[i] - sqrt_disc);
-      if (!interval_surrounds(&this_interval, t)) {
-        t = (-1*halfb2[i] + sqrt_disc);
-        if (!interval_surrounds(&this_interval, t)) {
+    if (vmaxvq_f32(disc2) >= 0.0f) {
+      for (int i = 0; i < 4; i++) {
+        if (disc2[i] < 0) {
           continue;
         }
-      }
+        float sqrt_disc = sqrt(disc2[i]);
+        float t = (-1*halfb2[i] - sqrt_disc);
+        if (!interval_surrounds(&this_interval, t)) {
+          t = (-1*halfb2[i] + sqrt_disc);
+          if (!interval_surrounds(&this_interval, t)) {
+            continue;
+          }
+        }
 
-      is_hit = true;
-      this_interval.max = t;
-      closest_hit_sphere = this_sphere + 4 + i;
+        is_hit = true;
+        this_interval.max = t;
+        closest_hit_sphere = this_sphere + 4 + i;
+      }
     }
 
     this_sphere += 8;

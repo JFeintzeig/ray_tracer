@@ -129,7 +129,9 @@ void *render_scanline(void *args) {
   const camera_t *camera = rargs->camera;
 
   for (int scanline = rargs->scanline_start; scanline < camera->image_height; scanline+=rargs->num_threads) {
-    printf("Thread %d Scanline %d\n", rargs->scanline_start, scanline);
+    if (scanline % 10 == 0) {
+      printf("Thread %d Scanline %d\n", rargs->scanline_start, scanline);
+    }
     for (int i = 0; i < camera->image_width; i++) {
       point3_t pixel_center = add(camera->pixel00_loc, scale(camera->pixel_delta_u, i));
       add_equals(&pixel_center, scale(camera->pixel_delta_v, scanline));

@@ -82,29 +82,33 @@ camera_t initialize_camera(float aspect_ratio, int image_width, int samples_per_
   return camera;
 }
 
-color_t ray_color(const ray_t *r, int depth, sphere_list_t *sphere_list, material_list_t *material_list, color_t attenuation) {
+color_t ray_color(ray_t *r, int depth, sphere_list_t *sphere_list, material_list_t *material_list) {
   if (depth == 0) {
     return new_vec3(0.0, 0.0, 0.0);
   }
 
   hit_record_t rec;
   interval_t interval = {.min = 0.001, .max = INFINITY};
+  ray_t *nray = r;
+  color_t attenuation = {1.0, 1.0, 1.0};
 
-  if (hit_sphere_list_vectorized(sphere_list, material_list, r, &interval, &rec)) {
-    ray_t nray;
-    color_t new_attenuation;
-    if (scatter(rec.mat, r, &rec, &new_attenuation, &nray)) {
-      color_t next_attenuation = multiply(attenuation, new_attenuation);
-      return ray_color(&nray, depth -1, sphere_list, material_list, next_attenuation);
+  while (depth > 0) {
+    if (hit_sphere_list_vectorized(sphere_list, material_list, nray, &interval, &rec)) {
+      color_t new_attenuation;
+      if (scatter(rec.mat, nray, &rec, &new_attenuation, nray)) {
+        attenuation = multiply(attenuation, new_attenuation);
+        depth -= 1;
+      } else {
+        return new_vec3(0.0, 0.0, 0.0);
+      }
     } else {
-      return new_vec3(0.0, 0.0, 0.0);
+      float a = 0.5 * (1.0 + normalize(r->direction).e[1]);
+      color_t white = new_vec3(1.0, 1.0, 1.0);
+      color_t blue = new_vec3(0.5, 0.7, 1.0);
+      return multiply(attenuation, add(scale(white, 1-a), scale(blue, a)));
     }
-  } else {
-    float a = 0.5 * (1.0 + normalize(r->direction).e[1]);
-    color_t white = new_vec3(1.0, 1.0, 1.0);
-    color_t blue = new_vec3(0.5, 0.7, 1.0);
-    return multiply(attenuation, add(scale(white, 1-a), scale(blue, a)));
   }
+  return new_vec3(0.0, 0.0, 0.0);
 }
 
 point3_t defocus_disk_sample(const camera_t *camera) {
@@ -149,8 +153,7 @@ void *render_scanline(void *args) {
         vec3_t ray_direction = normalize(subtract(pixel_sample, ray_origin));
         ray_t ray = new_ray(ray_origin, ray_direction);
 
-        color_t attenuation = new_vec3(1.0, 1.0, 1.0);
-        color_t sample_color = ray_color(&ray, camera->max_depth, rargs->sphere_list, rargs->material_list, attenuation);
+        color_t sample_color = ray_color(&ray, camera->max_depth, rargs->sphere_list, rargs->material_list);
         add_equals(&color_sum, sample_color);
       }
 
@@ -232,8 +235,7 @@ void render(camera_t *camera, sphere_list_t *sphere_list, material_list_t *mater
         vec3_t ray_direction = normalize(subtract(pixel_sample, ray_origin));
         ray_t ray = new_ray(ray_origin, ray_direction);
 
-        color_t attenuation = new_vec3(1.0, 1.0, 1.0);
-        color_t sample_color = ray_color(&ray, camera->max_depth, sphere_list, material_list, attenuation);
+        color_t sample_color = ray_color(&ray, camera->max_depth, sphere_list, material_list);
         add_equals(&color_sum, sample_color);
       }
 

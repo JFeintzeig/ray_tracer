@@ -12,9 +12,9 @@
 #include "material.h"
 
 bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *material_list, const ray_t *ray, const interval_t *interval, hit_record_t *rec) {
-  float closest_so_far = interval->max;
+  //float closest_so_far = interval->max;
   bool is_hit = false;
-  interval_t this_interval = {.min = interval->min, .max = closest_so_far};
+  //interval_t this_interval = {.min = interval->min, .max = closest_so_far};
 
   float32x4_t ray_dirx = vdupq_n_f32(ray->direction.e[0]);
   float32x4_t ray_diry = vdupq_n_f32(ray->direction.e[1]);
@@ -29,6 +29,13 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
   float32x4_t ray_orx2 = vdupq_n_f32(ray->origin.e[0]);
   float32x4_t ray_ory2 = vdupq_n_f32(ray->origin.e[1]);
   float32x4_t ray_orz2 = vdupq_n_f32(ray->origin.e[2]);
+
+  float32x4_t vec_zero = vdupq_n_f32(0.0f);
+  float32x4_t vec_min = vdupq_n_f32(interval->min);
+  float32x4_t vec_max = vdupq_n_f32(interval->max);
+  float32x4_t vec_inf = vdupq_n_f32(INFINITY);
+  float inds[4] = {0.0f, 1.0f, 2.0f, 3.0f};
+  float32x4_t vec_ind = vld1q_f32(&inds[0]);
 
   sphere_t *this_sphere = sphere_list->spheres;
   sphere_t *closest_hit_sphere;
@@ -106,49 +113,69 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
     }
 
     if (vmaxvq_f32(disc) >= 0.0f) {
-      for (int i = 0; i < 4; i++) {
-        if (disc[i] < 0) {
-          continue;
-        }
-        float sqrt_disc = sqrt(disc[i]);
-        float t = (-1*halfb[i] - sqrt_disc);
-        if (!interval_surrounds(&this_interval, t)) {
-          t = (-1*halfb[i] + sqrt_disc);
-          if (!interval_surrounds(&this_interval, t)) {
-            continue;
-          }
-        }
+      // IIRC, pre-calculating t_small and t_big and then
+      // doing the for loop was ~1 min 35 sec, so significantly slower
+      // the fancy masking at some point got to ~1 min 5 sec
+      // but the image was totally fucked
 
+      // The completely vectorized version from here below
+      // ran in 1 min 55 sec but something else on my laptop
+      // was also running so I couldn't get a good measurement.
+      // It consumed ~750% of CPU, so maybe will be closer to
+      // 1 min 25 sec for real
+      float32x4_t sqrte = vsqrtq_f32(disc);
+      float32x4_t t_small = vnegq_f32(vaddq_f32(halfb, sqrte));
+      float32x4_t t_big = vaddq_f32(vnegq_f32(halfb), sqrte);
+
+      uint32x4_t mask_s = vcgtq_f32(t_small, vec_min);
+      mask_s = vandq_u32(mask_s, vcltq_f32(t_small, vec_max));
+      // NB: implicitly filter disc >= 0 b/c otherwise sqrt is nan
+      t_small = vbslq_f32(mask_s, t_small, vec_inf);
+
+      uint32x4_t mask_b = vcgtq_f32(t_big, vec_min);
+      mask_b = vandq_u32(mask_b, vcltq_f32(t_big, vec_max));
+      t_big = vbslq_f32(mask_b, t_big, vec_inf);
+
+      float t_best = fmin(vminvq_f32(t_small), vminvq_f32(t_big));
+      if (t_best < INFINITY) {
         is_hit = true;
-        this_interval.max = t;
-        closest_hit_sphere = this_sphere + i;
+        vec_max = vdupq_n_f32(t_best);
+        int ind1 = vmaxvq_f32(vbslq_f32(vceqq_f32(t_small, vec_max), vec_ind, vec_zero));
+        int ind2 = vmaxvq_f32(vbslq_f32(vceqq_f32(t_big, vec_max), vec_ind, vec_zero));
+        int ind = ind1 > ind2 ? ind1 : ind2;
+        closest_hit_sphere = this_sphere + ind;
       }
     }
 
     if (vmaxvq_f32(disc2) >= 0.0f) {
-      for (int i = 0; i < 4; i++) {
-        if (disc2[i] < 0) {
-          continue;
-        }
-        float sqrt_disc = sqrt(disc2[i]);
-        float t = (-1*halfb2[i] - sqrt_disc);
-        if (!interval_surrounds(&this_interval, t)) {
-          t = (-1*halfb2[i] + sqrt_disc);
-          if (!interval_surrounds(&this_interval, t)) {
-            continue;
-          }
-        }
+      float32x4_t sqrte = vsqrtq_f32(disc2);
+      float32x4_t t_small = vnegq_f32(vaddq_f32(halfb2, sqrte));
+      float32x4_t t_big = vaddq_f32(vnegq_f32(halfb2), sqrte);
 
+      uint32x4_t mask_s = vcgtq_f32(t_small, vec_min);
+      mask_s = vandq_u32(mask_s, vcltq_f32(t_small, vec_max));
+      // NB: implicitly filter disc >= 0 b/c otherwise sqrt is nan
+      t_small = vbslq_f32(mask_s, t_small, vec_inf);
+
+      uint32x4_t mask_b = vcgtq_f32(t_big, vec_min);
+      mask_b = vandq_u32(mask_b, vcltq_f32(t_big, vec_max));
+      t_big = vbslq_f32(mask_b, t_big, vec_inf);
+
+      float t_best = fmin(vminvq_f32(t_small), vminvq_f32(t_big));
+      if (t_best < INFINITY) {
         is_hit = true;
-        this_interval.max = t;
-        closest_hit_sphere = this_sphere + 4 + i;
+        vec_max = vdupq_n_f32(t_best);
+        int ind1 = vmaxvq_f32(vbslq_f32(vceqq_f32(t_small, vec_max), vec_ind, vec_zero));
+        int ind2 = vmaxvq_f32(vbslq_f32(vceqq_f32(t_big, vec_max), vec_ind, vec_zero));
+        int ind = ind1 > ind2 ? ind1 : ind2;
+        closest_hit_sphere = this_sphere + ind;
       }
     }
 
     this_sphere += 8;
   }
   if (is_hit) {
-    rec->t = this_interval.max;
+    rec->t = vec_max[0];
     rec->p = propagate(*ray, rec->t);
     vec3_t outward_normal = scale(subtract(rec->p, closest_hit_sphere->center), 1.0/closest_hit_sphere->radius);
     set_face_normal(rec, ray, outward_normal);

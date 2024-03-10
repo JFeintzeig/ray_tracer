@@ -2,8 +2,10 @@ from matplotlib import pyplot as pylab
 import pandas as pd
 
 raw={}
-raw['baseline'] = open("instructions_nothreaded_ray_color_5n_nog.txt").readlines()
-raw['optimized'] = open("instructions_nothreaded_ray_color_5n_o2.txt").readlines()
+#raw['baseline'] = open("instructions_nothreaded_ray_color_5n_nog.txt").readlines()
+#raw['optimized'] = open("instructions_nothreaded_ray_color_5n_o2.txt").readlines()
+raw['baseline'] = open("instructions_nothreaded_10rays_recursion_s450_p572.txt").readlines()
+raw['optimized'] = open("instructions_nothreaded_10rays_while_s450_p572.txt").readlines()
 
 data={}
 for k, v in raw.items():
@@ -37,4 +39,4 @@ ax=to_plot.plot(kind='barh', ax=ax, fontsize=18)
 ax.set_yticklabels(to_plot['instruction'],fontsize='18')
 ax.grid(True)
 ax.legend(loc='lower right',prop={'size':'18'})
-pylab.savefig('instruction_count.png')
+pylab.savefig('instruction_count_recursion.png')

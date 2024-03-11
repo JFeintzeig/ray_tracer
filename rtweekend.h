@@ -20,7 +20,7 @@ float degrees_to_radians(float degrees) {
 
 // https://stackoverflow.com/questions/26237419/faster-than-rand/26237777#26237777
 
-unsigned int g_seed;
+__thread unsigned int g_seed;
 
 float MAX_RAND = 0x7FFF+1;
 

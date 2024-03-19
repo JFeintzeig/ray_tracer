@@ -30,6 +30,9 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
   float32x4_t ray_ory2 = vdupq_n_f32(ray->origin.e[1]);
   float32x4_t ray_orz2 = vdupq_n_f32(ray->origin.e[2]);
 
+  float32x4_t t_big;
+  float32x4_t t_big2;
+
   sphere_t *this_sphere = sphere_list->spheres;
   sphere_t *closest_hit_sphere;
   for (int count = sphere_list->nth_sphere - 1; count >= 0; count -= 8) {
@@ -87,34 +90,24 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
     disc2 = vsubq_f32(disc2, c2);
     // maybe different branches for 1 hit or more than one hit?
 
-    // this early stop condition runs in 1 min 28 sec (no fast-math)
-    //uint32x4_t ltzero = vcltq_f32(disc, vec_zero);
-    //if (vmaxvq_u32(ltzero) == 0) {
-
-    // this early stop condition runs in 1 min 25 sec (no fast-math)
-    //if (disc[0] < 0 && disc[1] < 0 && disc[2] < 0 && disc[3] < 0) {
-    //  this_sphere += 4;
-    //  continue;
-    //}
-
-    // this early stop condition runs in 1 min 16 sec (no fast-math)
-    // ohhh but with -ffast-math i'm down to 1 min 10 sec
-    // so this is a 10% improvement over no-early-stop (1 min 17 sec)
-    if (vmaxvq_f32(disc) < 0.0f && vmaxvq_f32(disc2) < 0.0f) {
+    if (vmaxvq_f32(vpmaxq_f32(disc, disc2)) < 0.0f) {
       this_sphere += 8;
       continue;
     }
 
     if (vmaxvq_f32(disc) >= 0.0f) {
+      float32x4_t sqrt_disc = vsqrtq_f32(disc);
+      float32x4_t t_small = vsubq_f32(vnegq_f32(halfb), sqrt_disc);
+
       for (int i = 0; i < 4; i++) {
         if (disc[i] < 0) {
           continue;
         }
-        float sqrt_disc = sqrt(disc[i]);
-        float t = (-1*halfb[i] - sqrt_disc);
-        if (!interval_surrounds(&this_interval, t)) {
-          t = (-1*halfb[i] + sqrt_disc);
-          if (!interval_surrounds(&this_interval, t)) {
+        float t = t_small[i];
+        if (!interval_surrounds(&this_interval, t_small[i])) {
+          t_big = vaddq_f32(vnegq_f32(halfb), sqrt_disc);
+          t = t_big[i];
+          if (!interval_surrounds(&this_interval, t_big[i])) {
             continue;
           }
         }
@@ -126,14 +119,17 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
     }
 
     if (vmaxvq_f32(disc2) >= 0.0f) {
+      float32x4_t sqrt_disc2 = vsqrtq_f32(disc2);
+      float32x4_t t_small2 = vsubq_f32(vnegq_f32(halfb2), sqrt_disc2);
+
       for (int i = 0; i < 4; i++) {
         if (disc2[i] < 0) {
           continue;
         }
-        float sqrt_disc = sqrt(disc2[i]);
-        float t = (-1*halfb2[i] - sqrt_disc);
+        float t = t_small2[i];
         if (!interval_surrounds(&this_interval, t)) {
-          t = (-1*halfb2[i] + sqrt_disc);
+          t_big2 = vaddq_f32(vnegq_f32(halfb2), sqrt_disc2);
+          t = t_big2[i];
           if (!interval_surrounds(&this_interval, t)) {
             continue;
           }

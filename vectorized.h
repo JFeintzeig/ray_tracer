@@ -13,7 +13,6 @@
 
 bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *material_list, const ray_t *ray, const interval_t *interval, hit_record_t *rec) {
   float closest_so_far = interval->max;
-  bool is_hit = false;
   interval_t this_interval = {.min = interval->min, .max = closest_so_far};
 
   float32x4_t ray_dirx = vdupq_n_f32(ray->direction.e[0]);
@@ -110,7 +109,6 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
           }
         }
 
-        is_hit = true;
         this_interval.max = t;
         closest_hit_sphere = this_sphere + i;
       }
@@ -133,7 +131,6 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
           }
         }
 
-        is_hit = true;
         this_interval.max = t;
         closest_hit_sphere = this_sphere + 4 + i;
       }
@@ -141,14 +138,16 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
 
     this_sphere += 8;
   }
-  if (is_hit) {
+
+  if (this_interval.max != interval->max) {
     rec->t = this_interval.max;
     rec->p = propagate(*ray, rec->t);
     vec3_t outward_normal = scale(subtract(rec->p, closest_hit_sphere->center), 1.0/sqrt(closest_hit_sphere->radius_squared));
     set_face_normal(rec, ray, outward_normal);
     rec->mat = &material_list->materials[(closest_hit_sphere - &sphere_list->spheres[0])];
+    return true;
   }
-  return is_hit;
+  return false;
 }
 
 #endif // !VECTORIZED_H

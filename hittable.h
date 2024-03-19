@@ -31,13 +31,13 @@ void set_face_normal(hit_record_t *rec, const ray_t *r, vec3_t outward_normal) {
 
 typedef struct sphere_t {
   point3_t center;
-  float radius;
+  float radius_squared;
 } sphere_t;
 
 sphere_t new_sphere(point3_t center, float radius) {
   sphere_t sphere = {
     .center = center,
-    .radius = radius
+    .radius_squared = radius*radius
   };
 
   return sphere;

@@ -59,7 +59,7 @@ int main() {
           color_t c2 = random_vec3(0, 1);
           color_t albedo_diffuse = multiply(c1, c2);
           material_t *sphere_material_diffuse = new_lambertian(albedo_diffuse);
-          add_sphere(sphere_list, center, 0.2);
+          add_sphere(sphere_list, center, 0.200001);
           add_material(material_list, *sphere_material_diffuse);
         } else if (choose_mat < 0.95) {
           // metal
@@ -67,12 +67,12 @@ int main() {
           color_t albedo_metal = random_vec3(0.5, 1.0);
           float fuzz = random_float_range(0, 0.5);
           material_t *sphere_material_metal = new_metal(albedo_metal, fuzz);
-          add_sphere(sphere_list, center, 0.2);
+          add_sphere(sphere_list, center, 0.200001);
           add_material(material_list, *sphere_material_metal);
         } else {
           // glass
           n_glass++;
-          add_sphere(sphere_list, center, 0.2);
+          add_sphere(sphere_list, center, 0.200001);
           add_material(material_list, *sphere_material_glass);
         }
       }

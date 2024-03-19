@@ -69,8 +69,7 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
     float32x4_t cz = vmulq_f32(ac_z, ac_z);
     float32x4_t c = vaddq_f32(cx, cy);
     c = vaddq_f32(c, cz);
-    float32x4_t r2 = vmulq_f32(vec_spheres.val[3], vec_spheres.val[3]);
-    c = vsubq_f32(c, r2);
+    c = vsubq_f32(c, vec_spheres.val[3]);
 
     // c = length_squared(a_c) - radius^2
     float32x4_t cx2 = vmulq_f32(ac_x2, ac_x2);
@@ -78,8 +77,7 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
     float32x4_t cz2 = vmulq_f32(ac_z2, ac_z2);
     float32x4_t c2 = vaddq_f32(cx2, cy2);
     c2 = vaddq_f32(c2, cz2);
-    float32x4_t r22 = vmulq_f32(vec_spheres2.val[3], vec_spheres2.val[3]);
-    c2 = vsubq_f32(c2, r22);
+    c2 = vsubq_f32(c2, vec_spheres2.val[3]);
 
     // discriminant = half_b*half_b - c
     float32x4_t disc = vmulq_f32(halfb, halfb);
@@ -146,7 +144,7 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
   if (is_hit) {
     rec->t = this_interval.max;
     rec->p = propagate(*ray, rec->t);
-    vec3_t outward_normal = scale(subtract(rec->p, closest_hit_sphere->center), 1.0/closest_hit_sphere->radius);
+    vec3_t outward_normal = scale(subtract(rec->p, closest_hit_sphere->center), 1.0/sqrt(closest_hit_sphere->radius_squared));
     set_face_normal(rec, ray, outward_normal);
     rec->mat = &material_list->materials[(closest_hit_sphere - &sphere_list->spheres[0])];
   }

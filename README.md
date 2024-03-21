@@ -2,7 +2,7 @@ A basic CPU-based ray-tracer written in C. I built this by roughly following alo
 
 <img width="1196" alt="image" src="https://github.com/JFeintzeig/ray_tracer/assets/4000790/34e24cc8-b564-469d-840c-59a30a7e463d">
 
-At first it was quite slow, taking over 3 hours to render the cover image of the book! Through pairing with others at the Recurse Center, I managed to speed it up so it now runs in 25.4 seconds on my laptop, a ~500x speed-up. We did this by:
+At first it was quite slow, taking over 3 hours to render this image! With a few weeks of extra effort, including lots of pairing sessions with others at the Recurse Center, I managed to speed it up so it now runs in 25.4 seconds on my laptop, a ~500x speed-up. We did this by:
 * Using the compiler optimization flag `-O2` (~15x speed-up).
 * Multithreading (5.6x speed-up).
 * Naive vectorization of `hit_sphere()` quadratic formula using NEON (~14% improvement) [0].

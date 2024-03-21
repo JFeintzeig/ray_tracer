@@ -22,31 +22,32 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
   float32x4_t ray_ory = vdupq_n_f32(ray->origin.e[1]);
   float32x4_t ray_orz = vdupq_n_f32(ray->origin.e[2]);
 
-  float32x4_t ray_dirx2 = vdupq_n_f32(ray->direction.e[0]);
-  float32x4_t ray_diry2 = vdupq_n_f32(ray->direction.e[1]);
-  float32x4_t ray_dirz2 = vdupq_n_f32(ray->direction.e[2]);
-  float32x4_t ray_orx2 = vdupq_n_f32(ray->origin.e[0]);
-  float32x4_t ray_ory2 = vdupq_n_f32(ray->origin.e[1]);
-  float32x4_t ray_orz2 = vdupq_n_f32(ray->origin.e[2]);
-
   float32x4_t t_big;
   float32x4_t t_big2;
 
-  sphere_t *this_sphere = sphere_list->spheres;
-  sphere_t *closest_hit_sphere;
+  float *sphere_xs = sphere_list->xs;
+  float *sphere_ys = sphere_list->ys;
+  float *sphere_zs = sphere_list->zs;
+  float *sphere_r2s = sphere_list->r2s;
+
+  size_t closest_hit_sphere = 0;
+
+  int block = 0;
   for (int count = sphere_list->nth_sphere - 1; count >= 0; count -= 8) {
-    float32x4x4_t vec_spheres = vld4q_f32(&this_sphere->center.e[0]);
-    float32x4x4_t vec_spheres2 = vld4q_f32(&(this_sphere+4)->center.e[0]);
+    float32x4x2_t vec_spheres_xs = vld1q_f32_x2(sphere_xs);
+    float32x4x2_t vec_spheres_ys = vld1q_f32_x2(sphere_ys);
+    float32x4x2_t vec_spheres_zs = vld1q_f32_x2(sphere_zs);
+    float32x4x2_t vec_spheres_r2s = vld1q_f32_x2(sphere_r2s);
 
     // a_c = origin - center
-    float32x4_t ac_x = vsubq_f32(ray_orx, vec_spheres.val[0]);
-    float32x4_t ac_y = vsubq_f32(ray_ory, vec_spheres.val[1]);
-    float32x4_t ac_z = vsubq_f32(ray_orz, vec_spheres.val[2]);
+    float32x4_t ac_x = vsubq_f32(ray_orx, vec_spheres_xs.val[0]);
+    float32x4_t ac_y = vsubq_f32(ray_ory, vec_spheres_ys.val[0]);
+    float32x4_t ac_z = vsubq_f32(ray_orz, vec_spheres_zs.val[0]);
 
     // a_c = origin - center
-    float32x4_t ac_x2 = vsubq_f32(ray_orx2, vec_spheres2.val[0]);
-    float32x4_t ac_y2 = vsubq_f32(ray_ory2, vec_spheres2.val[1]);
-    float32x4_t ac_z2 = vsubq_f32(ray_orz2, vec_spheres2.val[2]);
+    float32x4_t ac_x2 = vsubq_f32(ray_orx, vec_spheres_xs.val[1]);
+    float32x4_t ac_y2 = vsubq_f32(ray_ory, vec_spheres_ys.val[1]);
+    float32x4_t ac_z2 = vsubq_f32(ray_orz, vec_spheres_zs.val[1]);
 
     // half_b = direction dot a_c
     float32x4_t halfb_x = vmulq_f32(ray_dirx, ac_x);
@@ -56,9 +57,9 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
     halfb = vaddq_f32(halfb, halfb_z);
 
     // half_b = direction dot a_c
-    float32x4_t halfb_x2 = vmulq_f32(ray_dirx2, ac_x2);
-    float32x4_t halfb_y2 = vmulq_f32(ray_diry2, ac_y2);
-    float32x4_t halfb_z2 = vmulq_f32(ray_dirz2, ac_z2);
+    float32x4_t halfb_x2 = vmulq_f32(ray_dirx, ac_x2);
+    float32x4_t halfb_y2 = vmulq_f32(ray_diry, ac_y2);
+    float32x4_t halfb_z2 = vmulq_f32(ray_dirz, ac_z2);
     float32x4_t halfb2 = vaddq_f32(halfb_x2, halfb_y2);
     halfb2 = vaddq_f32(halfb2, halfb_z2);
 
@@ -68,7 +69,7 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
     float32x4_t cz = vmulq_f32(ac_z, ac_z);
     float32x4_t c = vaddq_f32(cx, cy);
     c = vaddq_f32(c, cz);
-    c = vsubq_f32(c, vec_spheres.val[3]);
+    c = vsubq_f32(c, vec_spheres_r2s.val[0]);
 
     // c = length_squared(a_c) - radius^2
     float32x4_t cx2 = vmulq_f32(ac_x2, ac_x2);
@@ -76,7 +77,7 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
     float32x4_t cz2 = vmulq_f32(ac_z2, ac_z2);
     float32x4_t c2 = vaddq_f32(cx2, cy2);
     c2 = vaddq_f32(c2, cz2);
-    c2 = vsubq_f32(c2, vec_spheres2.val[3]);
+    c2 = vsubq_f32(c2, vec_spheres_r2s.val[1]);
 
     // discriminant = half_b*half_b - c
     float32x4_t disc = vmulq_f32(halfb, halfb);
@@ -88,7 +89,11 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
     // maybe different branches for 1 hit or more than one hit?
 
     if (vmaxvq_f32(vpmaxq_f32(disc, disc2)) < 0.0f) {
-      this_sphere += 8;
+      sphere_xs += 8;
+      sphere_ys += 8;
+      sphere_zs += 8;
+      sphere_r2s += 8;
+      block += 8;
       continue;
     }
 
@@ -110,7 +115,7 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
         }
 
         this_interval.max = t;
-        closest_hit_sphere = this_sphere + i;
+        closest_hit_sphere = block + i;
       }
     }
 
@@ -132,19 +137,32 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
         }
 
         this_interval.max = t;
-        closest_hit_sphere = this_sphere + 4 + i;
+        closest_hit_sphere = block + 4 + i;
       }
     }
 
-    this_sphere += 8;
+    sphere_xs += 8;
+    sphere_ys += 8;
+    sphere_zs += 8;
+    sphere_r2s += 8;
+    block += 8;
   }
 
   if (this_interval.max != interval->max) {
+    point3_t center = {
+      .e = {
+        *(sphere_list->xs + closest_hit_sphere),
+        *(sphere_list->ys + closest_hit_sphere),
+        *(sphere_list->zs + closest_hit_sphere),
+      }
+    };
+
+    float radius_squared = *(sphere_list->r2s + closest_hit_sphere);
     rec->t = this_interval.max;
     rec->p = propagate(*ray, rec->t);
-    vec3_t outward_normal = scale(subtract(rec->p, closest_hit_sphere->center), 1.0/sqrt(closest_hit_sphere->radius_squared));
+    vec3_t outward_normal = scale(subtract(rec->p, center), 1.0/sqrt(radius_squared));
     set_face_normal(rec, ray, outward_normal);
-    rec->mat = &material_list->materials[(closest_hit_sphere - &sphere_list->spheres[0])];
+    rec->mat = &material_list->materials[closest_hit_sphere];
     return true;
   }
   return false;

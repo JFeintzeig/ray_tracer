@@ -87,13 +87,13 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
     float32x4_t disc2 = vmulq_f32(halfb2, halfb2);
     disc2 = vsubq_f32(disc2, c2);
     // maybe different branches for 1 hit or more than one hit?
+    sphere_xs += 8;
+    sphere_ys += 8;
+    sphere_zs += 8;
+    sphere_r2s += 8;
+    block += 8;
 
     if (vmaxvq_f32(vpmaxq_f32(disc, disc2)) < 0.0f) {
-      sphere_xs += 8;
-      sphere_ys += 8;
-      sphere_zs += 8;
-      sphere_r2s += 8;
-      block += 8;
       continue;
     }
 
@@ -115,7 +115,7 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
         }
 
         this_interval.max = t;
-        closest_hit_sphere = block + i;
+        closest_hit_sphere = block - 8 + i;
       }
     }
 
@@ -137,15 +137,9 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
         }
 
         this_interval.max = t;
-        closest_hit_sphere = block + 4 + i;
+        closest_hit_sphere = block - 4 + i;
       }
     }
-
-    sphere_xs += 8;
-    sphere_ys += 8;
-    sphere_zs += 8;
-    sphere_r2s += 8;
-    block += 8;
   }
 
   if (this_interval.max != interval->max) {
@@ -156,11 +150,11 @@ bool hit_sphere_list_vectorized(sphere_list_t *sphere_list, material_list_t *mat
         *(sphere_list->zs + closest_hit_sphere),
       }
     };
+    float recip_r = *(sphere_list->recip_r + closest_hit_sphere);
 
-    float radius_squared = *(sphere_list->r2s + closest_hit_sphere);
     rec->t = this_interval.max;
     rec->p = propagate(*ray, rec->t);
-    vec3_t outward_normal = scale(subtract(rec->p, center), 1.0/sqrt(radius_squared));
+    vec3_t outward_normal = scale(subtract(rec->p, center), recip_r);
     set_face_normal(rec, ray, outward_normal);
     rec->mat = &material_list->materials[closest_hit_sphere];
     return true;

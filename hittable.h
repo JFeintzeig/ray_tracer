@@ -37,6 +37,7 @@ typedef struct {
   float *ys;
   float *zs;
   float *r2s;
+  float *recip_r;
 } sphere_list_t;
 
 sphere_list_t *new_sphere_list(size_t n_spheres) {
@@ -50,6 +51,7 @@ sphere_list_t *new_sphere_list(size_t n_spheres) {
   sphere_list->ys = (float *)malloc(n_spheres * sizeof(float));
   sphere_list->zs = (float *)malloc(n_spheres * sizeof(float));
   sphere_list->r2s = (float *)malloc(n_spheres * sizeof(float));
+  sphere_list->recip_r = (float *)malloc(n_spheres * sizeof(float));
 
   return sphere_list;
 }
@@ -57,10 +59,12 @@ sphere_list_t *new_sphere_list(size_t n_spheres) {
 void add_sphere(sphere_list_t *sphere_list, vec3_t center, float radius) {
   // TODO: check how nth_sphere compares to max_spheres!
   float r2 = radius*radius;
+  float recip_r = 1/radius;
   memcpy(sphere_list->xs + sphere_list->nth_sphere, &center.e[0], 4);
   memcpy(sphere_list->ys + sphere_list->nth_sphere, &center.e[1], 4);
   memcpy(sphere_list->zs + sphere_list->nth_sphere, &center.e[2], 4);
   memcpy(sphere_list->r2s + sphere_list->nth_sphere, &r2, 4);
+  memcpy(sphere_list->recip_r + sphere_list->nth_sphere, &recip_r, 4);
   sphere_list->nth_sphere++;
 }
 

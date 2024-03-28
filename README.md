@@ -12,7 +12,7 @@ At first it was quite slow, taking over 3 hours to render this image! With a few
 * Refactored multithreading to better split load across threads (~10% improvement).
 * Replace stdlib `rand()` with a fast but dumb inline PRNG (~6% improvement).
 * Normalize ray direction up-front to simplify `hit_sphere()` calculation (3%).
-* Pre-compute sphere's radius^2 and use it instead of radius in `hit_sphere()` calculation, removing 2 instructions (3%).
+* Pre-compute sphere's radius^2 and use it instead of radius in `hit_sphere()` calculation, removing 2 instructions; also pre-compute 1/r for end of loop (4%).
 * Attempted to make `ray_color()` function tail-call recursive (before making it not recursive at all) (~2%).
 
 Things that didn't make it faster (not exhaustive list):
